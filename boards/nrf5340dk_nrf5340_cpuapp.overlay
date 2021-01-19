@@ -1,0 +1,10 @@
+/*
+ * Copyright (c) 2020, Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&i2c1 {
+    clock-frequency = <I2C_BITRATE_FAST>;
+};
+
