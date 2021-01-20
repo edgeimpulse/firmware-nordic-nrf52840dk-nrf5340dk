@@ -1,6 +1,6 @@
 # Edge Impulse firmware for nRF52840 DK / nRF5340 DK
 
-[Edge Impulse](https://www.edgeimpulse.com) enables developers to create the next generation of intelligent device solutions with embedded Machine Learning. This repository contains the Edge Impulse firmware for the Nordic Semiconductors nRF52840 DK / nRF5340 DK development boards, in combination with the ST IKS02A shield. This combination supports all Edge Impulse device features, including ingestion, remote management and inferencing.
+[Edge Impulse](https://www.edgeimpulse.com) enables developers to create the next generation of intelligent device solutions with embedded Machine Learning. This repository contains the Edge Impulse firmware for the Nordic Semiconductor nRF52840 DK / nRF5340 DK development boards, in combination with the ST IKS02A shield. This combination supports all Edge Impulse device features, including ingestion, remote management and inferencing.
 
 > **Note:** Do you just want to use this development board with Edge Impulse? No need to build this firmware. See the instructions for the [nRF52840 DK](https://docs.edgeimpulse.com/docs/nordic-semi-nrf52840-dk) and the [nRF5340 DK](https://docs.edgeimpulse.com/docs/nordic-semi-nrf5340-dk) for prebuilt images and instructions, or use the [data forwarder](https://docs.edgeimpulse.com/docs/cli-data-forwarder) to capture data from any sensor.
 
@@ -8,7 +8,7 @@
 
 **Hardware**
 
-* Nordic Semiconductors [nRF52840 DK](https://docs.edgeimpulse.com/docs/nordic-semi-nrf52840-dk) or [nRF5340 DK](https://docs.edgeimpulse.com/docs/nordic-semi-nrf5340-dk) development board.
+* Nordic Semiconductor [nRF52840 DK](https://docs.edgeimpulse.com/docs/nordic-semi-nrf52840-dk) or [nRF5340 DK](https://docs.edgeimpulse.com/docs/nordic-semi-nrf5340-dk) development board.
 * [X-NUCLEO-IKS02A1](https://www.st.com/en/ecosystems/x-nucleo-iks02a1.html) shield.
 
     > No IKS02A1 shield? You can modify this firmware relatively easily to work with other accelerometers or PDM microphones that are supported in Zephyr. See [Working with other sensors](#working-with-other-sensors).
