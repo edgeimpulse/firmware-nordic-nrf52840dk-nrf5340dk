@@ -87,6 +87,10 @@ static int get_type_c(uint8_t out_buffer[32], size_t *out_size);
 static bool get_wifi_connection_status_c(void);
 static bool get_wifi_present_status_c(void);
 static bool read_sample_buffer(size_t begin, size_t length, void(*data_fn)(uint8_t*, size_t));
+static void zephyr_timer_handler(struct k_timer *dummy);
+
+/** Zephyr timer */
+K_TIMER_DEFINE(led_timer, zephyr_timer_handler, NULL);
 
 /* Public functions -------------------------------------------------------- */
 
@@ -540,6 +544,16 @@ void ei_led_state_control(void)
 }
 
 /**
+ * @brief      Peridioc (200ms) handler for the LED's
+ *
+ * @param      dummy  The dummy
+ */
+static void zephyr_timer_handler(struct k_timer *dummy)
+{
+    ei_led_state_control();
+}
+
+/**
  * @brief      Sets development kit LEDs on and off
  *
  * @param[in]  led1     set LED1 on and off (true/false)
@@ -600,6 +614,10 @@ int BOARD_ledInit(void)
     {
         return EIO;
     }
+
+    /* start periodic timer that expires once every second */
+    k_timer_start(&led_timer, K_MSEC(200), K_MSEC(200));
+
     return ret;
 }
 
