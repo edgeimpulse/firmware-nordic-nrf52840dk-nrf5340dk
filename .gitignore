@@ -5,6 +5,5 @@ tags
 bootloader/
 modules/
 tools/
-zephyr/
 #comment if you want to commit your model
 *.hex
