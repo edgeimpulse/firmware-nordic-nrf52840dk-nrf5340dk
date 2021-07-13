@@ -42,7 +42,7 @@ typedef float sample_format_t;
 
 /* Function prototypes ----------------------------------------------------- */
 bool ei_inertial_init(void);
-void ei_inertial_read_data(void);
+int ei_inertial_read_data(void);
 bool ei_inertial_sample_start(sampler_callback callback, float sample_interval_ms);
 bool ei_inertial_setup_data_sampling(void);
 void ei_intertial_read_data_one(void);

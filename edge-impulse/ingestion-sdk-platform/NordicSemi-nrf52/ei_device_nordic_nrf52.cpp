@@ -406,6 +406,7 @@ bool ei_user_invoke_stop(void)
     while(data != 0xFF) {
         if(data == 'b') {
             stop_found = true;
+            EiDevice.set_state(eiStateFinished);
             break;
         }
         data = uart_getchar();

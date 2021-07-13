@@ -87,6 +87,7 @@ static uint32_t samples_required;
 static uint32_t current_sample;
 
 static inference_t inference;
+static int16_t max_audio_lvl = 0;
 
 static unsigned char ei_mic_ctx_buffer[1024];
 static sensor_aq_signing_ctx_t ei_mic_signing_ctx;
@@ -146,6 +147,27 @@ static void audio_buffer_inference_callback(void *buffer, uint32_t n_bytes)
 }
 
 /**
+ * @brief Get the max diff value from the sample buffer
+ * @param buffer Pointer to source buffer
+ * @param n_bytes Number of bytes in buffer
+ */
+static void audio_sanity_check_callback(void *buffer, uint32_t n_bytes)
+{
+    int16_t *samples = (int16_t *)buffer;
+    int16_t prev_sample = samples[0];
+
+    for(uint32_t i = 1; i < (n_bytes >> 1); i++) {
+
+        int16_t diff_sample = abs(prev_sample - samples[i]);
+        if(max_audio_lvl < diff_sample) {
+            max_audio_lvl = diff_sample;
+        }
+        prev_sample = samples[i];
+    }
+    record_ready = false;
+}
+
+/**
  * @brief      PDM receive data handler
  * @param[in]  p_evt  pdm event structure
  */
@@ -163,7 +185,7 @@ static void pdm_data_handler(nrfx_pdm_evt_t const * p_evt)
         buf_toggle ^= 1;
         err = nrfx_pdm_buffer_set(pdm_buffer_temp[buf_toggle], AUDIO_DSP_SAMPLE_BUFFER_SIZE);
         if(err != NRFX_SUCCESS){
-            printk("PDM buffer init error: %d\n", err);
+            ei_printf("PDM buffer init error: %d\n", err);
         }
     }
     if(p_evt->buffer_released != NULL){
@@ -181,8 +203,8 @@ static void pdm_data_handler(nrfx_pdm_evt_t const * p_evt)
 static void get_dsp_data(void (*callback)(void *buffer, uint32_t n_bytes))
 {
     //TODO: check the number of bytes
-    if(write_data ==true){
-            callback((void *)current_buff, sizeof(pdm_buffer_temp)/2);
+    if(write_data == true){
+        callback((void *)current_buff, sizeof(pdm_buffer_temp)/2);
         write_data = false;
     }
 }
@@ -282,6 +304,31 @@ static bool create_header(void)
     return true;
 }
 
+/**
+ * @brief Get a full sample buffer and run sanity check
+ * @return true microphone is working
+ * @return false stops audio and return
+ */
+static bool do_sanity_check(void)
+{
+    max_audio_lvl = 0;
+    record_ready = true;
+    write_data = false;
+
+    while (record_ready == true) {
+        get_dsp_data(&audio_sanity_check_callback);
+    }
+
+    if(max_audio_lvl < 10) {
+        ei_printf("\r\nERR: No audio recorded, is the microphone connected?\r\n");
+        nrfx_pdm_stop();
+        EiDevice.set_state(eiStateFinished);
+        return false;
+    }
+    else {
+        return true;
+    }
+}
 
 /* Public functions -------------------------------------------------------- */
 
@@ -344,7 +391,12 @@ bool ei_microphone_record(uint32_t sample_length_ms, uint32_t start_delay_ms, bo
     /* Erase necessary flash size for new data */
     if (ei_zephyr_flash_erase_sampledata(0, (samples_required << 1) +
         ei_zephyr_flash_get_block_size()) != ZEPHYR_FLASH_CMD_OK) {
-        nrfx_pdm_start();;
+        nrfx_pdm_stop();
+        return false;
+    }
+
+    /* Since we have no feedback from the PDM sensor, do a sanity check on the data stream */
+    if(do_sanity_check() == false) {
         return false;
     }
 
@@ -360,6 +412,17 @@ bool ei_microphone_record(uint32_t sample_length_ms, uint32_t start_delay_ms, bo
 bool ei_microphone_inference_start(uint32_t n_samples)
 {
     nrfx_err_t err;
+
+    err = nrfx_pdm_start();
+    if(err != NRFX_SUCCESS){
+        return false;
+    }
+
+    EiDevice.delay_ms(1000);
+    /* Since we have no feedback from the PDM sensor, do a sanity check on the data stream */
+    if(do_sanity_check() == false) {
+        return false;
+    }
 
     inference.buffers[0] = (int16_t *)malloc(n_samples * sizeof(int16_t));
 
@@ -378,11 +441,6 @@ bool ei_microphone_inference_start(uint32_t n_samples)
     inference.buf_count  = 0;
     inference.n_samples  = n_samples;
     inference.buf_ready  = 0;
-
-    err = nrfx_pdm_start();
-    if(err != NRFX_SUCCESS){
-        return false;
-    }
 
     return true;
 }

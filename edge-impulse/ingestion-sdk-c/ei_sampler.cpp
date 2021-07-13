@@ -42,7 +42,7 @@ using namespace events;
 
 /** @todo Should be called by function pointer */
 extern bool ei_inertial_sample_start(sampler_callback callback, float sample_interval_ms);
-extern void ei_inertial_read_data(void);
+extern int ei_inertial_read_data(void);
 
 extern void ei_printf(const char *format, ...);
 extern ei_config_t *ei_config_get_config();
@@ -200,7 +200,9 @@ bool ei_sampler_start_sampling(void *v_ptr_payload, uint32_t sample_size)
     ei_printf("Sampling...\n");
 
     while (current_sample < samples_required) {
-        ei_inertial_read_data();
+        if(ei_inertial_read_data()) {
+            return false;
+        }
     }
 
     ei_write_last_data();

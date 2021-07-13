@@ -68,7 +68,9 @@ void run_nn(bool debug)
 
     ei_printf("Starting inferencing, press 'b' to break\n");
 
-    ei_inertial_sample_start(&acc_data_callback, EI_CLASSIFIER_INTERVAL_MS);
+    if(ei_inertial_sample_start(&acc_data_callback, EI_CLASSIFIER_INTERVAL_MS) == false) {
+        return;
+    }
 
     while (stop_inferencing == false) {
         ei_printf("Starting inferencing in 2 seconds...\n");

@@ -513,61 +513,22 @@ namespace processing {
      * @param features_matrix input feature matrix, will be modified in place
      */
     static int mfe_normalization(matrix_t *features_matrix, int noise_floor_db) {
-        int ret;
+        const float noise = static_cast<float>(noise_floor_db * -1);
+        const float noise_scale = 1.0f / (static_cast<float>(noise_floor_db * -1) + 12.0f);
 
-        ret = numpy::clip(features_matrix, 1e-30, DBL_MAX);
-        if (ret != EIDSP_OK) {
-            EIDSP_ERR(ret);
-        }
-
-        // log10
-        ret = numpy::log10(features_matrix);
-        if (ret != EIDSP_OK) {
-            EIDSP_ERR(ret);
-        }
-
-        // scale by * 10
-        ret = numpy::scale(features_matrix, 10.0f);
-        if (ret != EIDSP_OK) {
-            EIDSP_ERR(ret);
-        }
-
-        // Add power offset and clip values below 0 (hard filter)
-        ret = numpy::add(features_matrix, static_cast<float>(noise_floor_db * -1));
-        if (ret != EIDSP_OK) {
-            EIDSP_ERR(ret);
-        }
-
-        ret = numpy::scale(features_matrix, 1.0f / (static_cast<float>(noise_floor_db * -1) + 12.0f));
-        if (ret != EIDSP_OK) {
-            EIDSP_ERR(ret);
-        }
-
-        ret = numpy::clip(features_matrix, 0.0f, 1.0f);
-        if (ret != EIDSP_OK) {
-            EIDSP_ERR(ret);
-        }
-
-        // scale to 0..255 and then remove precision
-        ret = numpy::scale(features_matrix, 256.0f);
-        if (ret != EIDSP_OK) {
-            EIDSP_ERR(ret);
-        }
-
-        ret = numpy::round(features_matrix);
-        if (ret != EIDSP_OK) {
-            EIDSP_ERR(ret);
-        }
-
-        // and scale back
-        ret = numpy::scale(features_matrix, 1.0f / 256.0f);
-        if (ret != EIDSP_OK) {
-            EIDSP_ERR(ret);
-        }
-
-        ret = numpy::clip(features_matrix, 0.0f, 1.0f);
-        if (ret != EIDSP_OK) {
-            EIDSP_ERR(ret);
+        for (size_t ix = 0; ix < features_matrix->rows * features_matrix->cols; ix++) {
+            float f = features_matrix->buffer[ix];
+            if (f < 1e-30) {
+                f = 1e-30;
+            }
+            f = numpy::log10(f);
+            f *= 10.0f; // scale by 10
+            f += noise;
+            f *= noise_scale;
+            // clip again
+            if (f < 0.0f) f = 0.0f;
+            else if (f > 1.0f) f = 1.0f;
+            features_matrix->buffer[ix] = f;
         }
 
         return EIDSP_OK;

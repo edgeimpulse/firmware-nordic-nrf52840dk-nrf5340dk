@@ -73,6 +73,7 @@ int16_t data_raw_acceleration[N_AXIS_SAMPLED];
 
 int32_t sample_interval_real_us = 0;
 const struct device *i2c_dev;
+static bool device_init_correctly = false;
 
 /**
  * @brief      Setup I2C config and accelerometer convert value
@@ -88,11 +89,6 @@ bool ei_inertial_init(void)
     {
         ei_printf("No device I2C found; did initialization fail?\n");
         return false;
-    }
-    else
-    {
-        //i2c_configure(i2c_dev, I2C_SPEED_SET(I2C_SPEED_STANDARD));
-        ei_printf("I2C Init OK\n");
     }
 
     dev_ctx.write_reg = platform_write;
@@ -125,16 +121,20 @@ bool ei_inertial_init(void)
 	}
 
     ei_printf("Sensor " ACCEL_DEVICE_LABEL " init OK\n");
+    device_init_correctly = true;
 
     return true;
 }
 
 /**
  * @brief      Get data from sensor, convert and call callback to handle
+ *
+ * @return     0 on success, non-zero on error
  */
-void ei_inertial_read_data(void)
+int ei_inertial_read_data(void)
 {
     uint8_t reg;
+    int ret_val = 0;
 
     if(i2c_dev){
         iis2dlpc_flag_data_ready_get(&dev_ctx, &reg);
@@ -162,7 +162,10 @@ void ei_inertial_read_data(void)
         acceleration_g[2] = 0.0f;
         EiDevice.delay_ms((uint32_t)(sample_interval_real_us / 1000));
         cb_sampler((const void *)&acceleration_g[0], SIZEOF_N_AXIS_SAMPLED);
+        ret_val = -1;
     }
+
+    return ret_val;
 }
 
 /**
@@ -175,6 +178,12 @@ void ei_inertial_read_data(void)
  */
 bool ei_inertial_sample_start(sampler_callback callsampler, float sample_interval_ms)
 {
+    if(device_init_correctly == false) {
+        ei_printf("\r\nERR: Failed to get data, is your accelerometer connected?\r\n");
+        EiDevice.set_state(eiStateFinished);
+        return false;
+    }
+
     cb_sampler = callsampler;
 
     sample_interval_real_us = int32_t(sample_interval_ms * 1000);
