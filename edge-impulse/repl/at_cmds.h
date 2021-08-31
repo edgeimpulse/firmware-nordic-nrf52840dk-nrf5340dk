@@ -24,7 +24,7 @@
 #define _EDGE_IMPULSE_AT_COMMANDS_CONFIG_H_
 
 #include "at_cmd_interface.h"
-#include "at_base64.h"
+#include "edge-impulse-sdk/porting/lib/at_base64_lib.h"
 #include "ei_config.h"
 
 #include "ei_device_nordic_nrf52.h"
@@ -35,7 +35,12 @@
 #include <power/reboot.h>
 
 
-#define EDGE_IMPULSE_AT_COMMAND_VERSION        "1.3.0"
+#define EDGE_IMPULSE_AT_COMMAND_VERSION        "1.6.0" // not a complete set (missing snapshot related commands)
+#define ei_putc(c) uart_putchar(c)
+
+static void at_error_not_implemented() {
+    ei_printf("Command not implemented\r\n");
+}
 
 static void at_clear_config() {
     ei_printf("Clearing config and restarting system...\n");
@@ -60,6 +65,24 @@ static void at_device_info() {
         ei_printf("Type:       %s\n", id_buffer);
     }
     ei_printf("AT Version: %s\n", EDGE_IMPULSE_AT_COMMAND_VERSION);
+
+    ei_device_data_output_baudrate_t baudrate;
+    r = EiDevice.get_data_output_baudrate(&baudrate);
+    if (r == 0) {
+        ei_printf("Data Transfer Baudrate: %s\r\n", baudrate.str);
+    } else {
+        ei_printf("Data Transfer Baudrate: UNKNOWN\r\n");
+    }
+}
+
+static void at_set_device_id(char *device_id) {
+    EI_CONFIG_ERROR r = ei_config_set_device_id(device_id);
+    if (r != EI_CONFIG_OK) {
+        ei_printf("Failed to persist Device ID (%d)\n", r);
+    }
+    else {
+        ei_printf("OK\n");
+    }
 }
 
 static void at_get_wifi() {
@@ -181,9 +204,7 @@ static void at_set_upload_settings(char *api_key, char *url) {
 static void at_get_mgmt_settings() {
     char *mgmt_url;
     bool is_connected;
-    char last_error[128];
-
-    memset(last_error, 0, 128);
+    char last_error[128] = { '\0' };
 
     EI_CONFIG_ERROR r = ei_config_get_mgmt_settings(&mgmt_url, &is_connected, last_error, 128);
     if (r != EI_CONFIG_OK) {
@@ -205,11 +226,82 @@ static void at_set_mgmt_settings(char *mgmt_url) {
     }
 }
 
+static void at_get_snapshot(void) {
+
+    const ei_device_snapshot_resolutions_t *list;
+    size_t list_size;
+    const char *color_depth;
+
+    int r = EiDevice.get_snapshot_list((const ei_device_snapshot_resolutions_t **)&list, &list_size, &color_depth);
+    if (r) { /* apparently false is OK here?! */
+        ei_printf("Has snapshot:    0\n");
+        return;
+    }
+
+    ei_printf("Has snapshot:         1\n");
+    ei_printf("Supports stream:      1\n");
+    ei_printf("Color depth:          %s\n", color_depth);
+    ei_printf("Resolutions:          [ ");
+    for (size_t ix = 0; ix < list_size; ix++) {
+        ei_printf("%lux%lu", list[ix].width, list[ix].height);
+        if (ix != list_size - 1) {
+            ei_printf(", ");
+        }
+        else {
+            ei_printf(" ");
+        }
+    }
+    ei_printf("]\n");
+}
+
+static void at_take_snapshot(char *width_s, char *height_s, char *baudrate_s) {
+
+    if (!ei_config_get_context()->take_snapshot) {
+        at_error_not_implemented();
+        return;
+    }
+
+    size_t width = (size_t)atoi(width_s);
+    size_t height = (size_t)atoi(height_s);
+
+    bool use_max_baudrate = false;
+    if (baudrate_s[0] == 'y') {
+       use_max_baudrate = true;
+    }
+
+    if (!ei_config_get_context()->take_snapshot(width, height, use_max_baudrate)) {
+        ei_printf("ERR: Snapshot failed\n");
+        return;
+    }
+}
+
+static void at_start_snapshot_stream(char *width_s, char *height_s, char *baudrate_s) {
+
+    if (!ei_config_get_context()->start_snapshot_stream) {
+        at_error_not_implemented();
+        return;
+    }
+
+    size_t width = (size_t)atoi(width_s);
+    size_t height = (size_t)atoi(height_s);
+
+    bool use_max_baudrate = false;
+    if (baudrate_s[0] == 'y') {
+       use_max_baudrate = true;
+    }
+
+    if (!ei_config_get_context()->start_snapshot_stream(width, height, use_max_baudrate)) {
+        ei_printf("ERR: Snapshot Stream failed\n");
+        return;
+    }
+}
+
+
 static void at_list_sensors() {
 
     const ei_sensor_t *list;
     size_t list_size;
-    
+
     int r = EiDevice.get_sensor_list((const ei_device_sensor_t **)&list, &list_size);
     if (r != 0) {
         ei_printf("Failed to get sensor list (%d)\n", r);
@@ -217,19 +309,12 @@ static void at_list_sensors() {
     }
 
     for (size_t ix = 0; ix < list_size; ix++) {
-        //ei_printf("Name: %s\n"
-        //          "Max sample length: %d s\n"
-        //          "Frequencies: [", 
-        //          list[ix].name, list[ix].max_sample_length_s);
-
         ei_printf("Name: %s, Max sample length: %hus, Frequencies: [", list[ix].name, list[ix].max_sample_length_s);
         for (size_t fx = 0; fx < EDGE_IMPULSE_MAX_FREQUENCIES; fx++) {
             if (list[ix].frequencies[fx] != 0.0f) {
                 if (fx != 0) {
                     ei_printf(", ");
                 }
-                //ei_printf("%.2fHz", list[ix].frequencies[fx]);
-                //ei_printf("%d.00Hz", (int)list[ix].frequencies[fx]);
                 ei_printf_float(list[ix].frequencies[fx]);
                 ei_printf("Hz");
             }
@@ -244,6 +329,9 @@ static void at_list_config() {
     ei_printf("\n");
     ei_printf("===== Sensors ======\n");
     at_list_sensors();
+    ei_printf("\n");
+    ei_printf("===== Snapshot ======\n");
+    at_get_snapshot();
     ei_printf("\n");
     ei_printf("===== WIFI =====\n");
     at_get_wifi();
@@ -264,30 +352,54 @@ static void at_list_files_data(char *name) {
 }
 
 static void at_list_files() {
-    ei_config_get_context()->list_files(at_list_files_data);
+
+    if (!ei_config_get_context()->list_files) {
+        at_error_not_implemented();
+        return;
+    }
+
+    if(ei_config_get_context()->list_files == NULL){
+        ei_printf("AT+NACK\n");
+    }
+    else {
+        ei_config_get_context()->list_files(at_list_files_data);
+    }
 }
 
 static void at_read_file_data(uint8_t *buffer, size_t size) {
-    //char *base64_buffer = (char*)calloc((size / 3 * 4) + 4, 1);
-    static char base64_buffer[(513 / 3 * 4) + 4];
-    if (!base64_buffer) {
-        ei_printf("ERR: Cannot allocate base64 buffer of size %u, out of memory\n", (size / 3 * 4) + 4);
-        return;
-    }
-
-    int r = base64_encode((const char*)buffer, size, base64_buffer, (size / 3 * 4) + 4);
-    if (r < 0) {
-        ei_printf("ERR: Failed to base64 encode (%d)\n", r);
-        return;
-    }
-    
-    ei_write_string(base64_buffer, r);
-
-    //free(base64_buffer);
+    base64_encode((const char*)buffer, size, uart_putchar);
 }
 
-static void at_read_file(char *filename) {
+static void at_read_file(char *filename, char *baudrate_s) {
+
+    bool use_max_baudrate = false;
+    if (baudrate_s[0] == 'y') {
+       use_max_baudrate = true;
+    }
+
+
+    // setup data output baudrate
+    if (use_max_baudrate) {
+
+        // sleep a little to let the daemon attach on the new baud rate...
+        ei_printf("OK\r\n");
+
+        EiDevice.set_max_data_output_baudrate();
+        EiDevice.delay_ms(100);
+    }
+
     bool exists = ei_config_get_context()->read_file(filename, at_read_file_data);
+
+    if (use_max_baudrate) {
+        // lower baud rate
+        ei_printf("\r\nOK\r\n");
+
+        EiDevice.set_default_data_output_baudrate();
+
+        // give some time to re-attach
+        EiDevice.delay_ms(100);
+    }
+
     if (!exists) {
         ei_printf("File '%s' does not exist\n", filename);
     }
@@ -296,11 +408,44 @@ static void at_read_file(char *filename) {
     }
 }
 
-static void at_read_buffer(char *start_s, char *length_s) {
+static void at_read_buffer(char *start_s, char *length_s, char *baudrate_s) {
+
+    if (!ei_config_get_context()->read_buffer) {
+        at_error_not_implemented();
+        return;
+    }
+
     size_t start = (size_t)atoi(start_s);
     size_t length = (size_t)atoi(length_s);
 
+    bool use_max_baudrate = false;
+    if (baudrate_s[0] == 'y') {
+       use_max_baudrate = true;
+    }
+
+    // setup data output baudrate
+    if (use_max_baudrate) {
+
+        // sleep a little to let the daemon attach on the new baud rate...
+        ei_printf("OK\r\n");
+        EiDevice.delay_ms(100);
+        EiDevice.set_max_data_output_baudrate();
+        EiDevice.delay_ms(100);
+    }
+
     bool success = ei_config_get_context()->read_buffer(start, length, at_read_file_data);
+
+    if (use_max_baudrate) {
+        // lower baud rate
+        ei_printf("\r\nOK\r\n");
+
+        EiDevice.delay_ms(100);
+        EiDevice.set_default_data_output_baudrate();
+
+        // give some time to re-attach
+        EiDevice.delay_ms(100);
+    }
+
     if (!success) {
         ei_printf("Failed to read from buffer\n");
     }
@@ -387,6 +532,12 @@ static void at_scan_wifi_data(const char *ssid, ei_config_security_t security, i
 }
 
 static void at_scan_wifi() {
+
+    if (!ei_config_get_context()->scan_wifi) {
+        at_error_not_implemented();
+        return;
+    }
+
     if (ei_config_get_context()->scan_wifi == NULL) {
         ei_printf("Device does not have a WiFi interface\n");
         return;
@@ -422,6 +573,10 @@ static void at_sample_start(char *sensor_name) {
 }
 
 static void at_clear_files_data(char *filename) {
+
+    if (!ei_config_get_context()->unlink_file)
+        at_error_not_implemented();
+
     if (ei_config_get_context()->unlink_file(filename)) {
         ei_printf("Unlinked '%s'\n", filename);
     }
@@ -431,6 +586,12 @@ static void at_clear_files_data(char *filename) {
 }
 
 static void at_clear_fs() {
+
+    if (!ei_config_get_context()->list_files) {
+        at_error_not_implemented();
+        return;
+    }
+
     ei_printf("Clearing file system...\n");
 
     ei_config_get_context()->list_files(at_clear_files_data);
@@ -440,31 +601,10 @@ static void at_reset() {
     sys_reboot(SYS_REBOOT_COLD);
 }
 
-static void at_boot_mode() 
+static void at_boot_mode()
 {
-    ei_printf("AT+NACK\r");
+    ei_printf("AT+ACK\r");
 }
-
-/* Development test functions */
-/*
-static void at_flash_write() 
-{
-    zephyr_flash_write();
-}
-
-
-static void at_flash_write1(char *buf) 
-{
-    uint8_t buff = (uint8_t) atoi(buf);
-
-    zephyr_flash_write1(&buff);
-}
-
-static void at_flash_read() 
-{
-    zephyr_flash_read();
-}
-*/
 
 // AT commands related to configuration
 void ei_at_register_generic_cmds() {
@@ -473,6 +613,7 @@ void ei_at_register_generic_cmds() {
     ei_at_cmd_register("CLEARFILES", "Clears all files from the file system, this does not clear config", &at_clear_fs);
     ei_at_cmd_register("CONFIG?", "Lists complete config", &at_list_config);
     ei_at_cmd_register("DEVICEINFO?", "Lists device information", &at_device_info);
+    ei_at_cmd_register("DEVICEID=", "Sets the device ID (DEVICEID)", &at_set_device_id);
     ei_at_cmd_register("SENSORS?", "Lists sensors", &at_list_sensors);
     ei_at_cmd_register("RESET", "Reset the system", &at_reset);
     ei_at_cmd_register("WIFI?", "Lists current WiFi credentials", &at_get_wifi);
@@ -487,20 +628,16 @@ void ei_at_register_generic_cmds() {
     ei_at_cmd_register("UPLOADHOST=", "Sets upload host (HOST)", &at_set_upload_host);
     ei_at_cmd_register("MGMTSETTINGS?", "Lists current management settings", &at_get_mgmt_settings);
     ei_at_cmd_register("MGMTSETTINGS=", "Sets current management settings (URL)", &at_set_mgmt_settings);
+    ei_at_cmd_register("SNAPSHOT?", "Lists snapshot settings", &at_get_snapshot);
+    ei_at_cmd_register("SNAPSHOT=", "Take a snapshot (WIDTH,HEIGHT,USEMAXRATE?(y/n))", &at_take_snapshot);
+    ei_at_cmd_register("SNAPSHOTSTREAM=", "Take a stream of snapshot stream (WIDTH,HEIGHT,USEMAXRATE?(y/n))", &at_start_snapshot_stream);
     ei_at_cmd_register("LISTFILES", "Lists all files on the device", &at_list_files);
-    ei_at_cmd_register("READFILE=", "Read a specific file (as base64)", &at_read_file);
-    ei_at_cmd_register("READBUFFER=", "Read from the temporary buffer (as base64) (START,LENGTH)", &at_read_buffer);
+    ei_at_cmd_register("READFILE=", "Read a specific file (as base64) (FILENAME,USEMAXRATE?(y/n))", &at_read_file);
+    ei_at_cmd_register("READBUFFER=", "Read from the temporary buffer (as base64) (START,LENGTH,USEMAXRATE?(y/n))", &at_read_buffer);
     ei_at_cmd_register("UNLINKFILE=", "Unlink a specific file", &at_unlink_file);
-    //ei_at_cmd_register("UPLOADFILE=", "Upload a specific file", &at_upload_file);
     ei_at_cmd_register("SAMPLESTART=", "Start sampling", &at_sample_start);
     ei_at_cmd_register("READRAW=", "Read raw from flash (START,LENGTH)", &at_read_raw);
     ei_at_cmd_register("BOOTMODE", "Jump to bootloader", &at_boot_mode);
-
-    /* Development testing commands */
-    //ei_at_cmd_register("fw", "Flash test, address is 0x73000", &at_flash_write);
-    //ei_at_cmd_register("fw=", "Write raw to flash, 4 bytes, address is 0x73000", &at_flash_write1);
-    //ei_at_cmd_register("fr=", "Read raw to flash, 4 bytes, address is 0x73000", &at_flash_read);
-    //ei_at_cmd_register("RUNACCEL1", "Run one data collection", &ei_intertial_read_data_one);
 }
 
 #endif // _EDGE_IMPULSE_AT_COMMANDS_CONFIG_H_

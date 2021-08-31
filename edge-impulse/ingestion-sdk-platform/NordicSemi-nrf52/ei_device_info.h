@@ -23,6 +23,21 @@ typedef struct {
 //#endif
 } ei_device_sensor_t;
 
+typedef struct {
+    size_t width;
+    size_t height;
+    uint8_t color_depth;
+} ei_device_snapshot_resolutions_t;
+
+typedef struct {
+    size_t width;
+    size_t height;
+} ei_device_resize_resolutions_t;
+
+typedef struct {
+    char str[32];
+    int val;
+} ei_device_data_output_baudrate_t;
 
 /**
  * @brief      Default class for device characteristics
@@ -125,7 +140,32 @@ public:
 		*sensor_list_size = 0;
 		return true;
 	}
-	
+
+    /**
+	 * @brief      Create resolution list for snapshot setting
+	 *             The studio and daemon require this list
+	 * @param      snapshot_list       Place pointer to resolution list
+	 * @param      snapshot_list_size  Write number of resolutions here
+	 *
+	 * @return     False if all went ok
+	 */
+    virtual bool get_snapshot_list(
+        const ei_device_snapshot_resolutions_t **snapshot_list,
+        size_t *snapshot_list_size,
+        const char **color_depth)
+    {
+        return true;
+    }
+
+    virtual void set_default_data_output_baudrate()
+	{
+
+	}
+
+    virtual void set_max_data_output_baudrate()
+	{
+
+	}
 };
 
 

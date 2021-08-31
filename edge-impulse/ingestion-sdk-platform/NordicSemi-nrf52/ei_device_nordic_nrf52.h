@@ -32,6 +32,13 @@
 
 #include <cstdio>
 
+#define DEFAULT_BAUD 115200
+/* 230400 bps seems to be the highest, the safest and most compatible speed
+ * for UART. Tests shown that 460800 is not working on nRF5340DK, while 921600
+ * is not working on nRF52840DK.
+ * See: https://devzone.nordicsemi.com/f/nordic-q-a/76793/baudrate-on-vcom-on-nrf52840dk */
+#define MAX_BAUD 230400
+
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
 #define LED1_NODE DT_ALIAS(led1)
@@ -109,6 +116,9 @@ public:
 	void delay_ms(uint32_t milliseconds);
 	uint64_t get_ms(void);
 	void set_state(tEiState state);
+	int get_data_output_baudrate(ei_device_data_output_baudrate_t *baudrate);
+	void set_default_data_output_baudrate() override;
+	void set_max_data_output_baudrate() override;
 
 	c_callback get_id_function(void);
 	c_callback get_type_function(void);

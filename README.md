@@ -23,6 +23,19 @@ Or you can build this application with Docker (see below).
 
 ## Building the device firmware (locally)
 
+1. Install and configure the nRF Connect SDK:
+    1. [nRF Connect SDK](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/gs_installing.html) in a *separate* folder from this repository (e.g. `~/repos/ncs`).
+    1. Check out NCS version 1.6.0:
+
+        ```
+        $ cd ~/repos/ncs/nrf
+        $ git checkout v1.6.0
+        $ cd ..
+        $ west update
+        ```
+
+    1. Set your `ZEPHYR_BASE` environment variable to `~/repos/ncs/zephyr`.
+
 1. Clone this repository:
 
     ```

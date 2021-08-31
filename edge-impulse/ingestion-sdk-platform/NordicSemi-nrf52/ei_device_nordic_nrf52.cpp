@@ -23,7 +23,7 @@
 /* Include ----------------------------------------------------------------- */
 #include "ei_device_nordic_nrf52.h"
 #include "ei_zephyr_flash_commands.h"
-//#include "retargetserial.h"
+#include "edge-impulse-sdk/dsp/ei_utils.h"
 #include "ei_microphone.h"
 #include "ei_inertialsensor.h"
 #include "repl.h"
@@ -58,6 +58,12 @@ typedef enum
 
 }used_sensors_t;
 
+/** Data Output Baudrate */
+const ei_device_data_output_baudrate_t ei_dev_max_data_output_baudrate = {
+    xstr(MAX_BAUD),
+    MAX_BAUD,
+};
+
 #define EDGE_STRINGIZE_(x) #x
 #define EDGE_STRINGIZE(x) EDGE_STRINGIZE_(x)
 
@@ -87,6 +93,9 @@ static int get_type_c(uint8_t out_buffer[32], size_t *out_size);
 static bool get_wifi_connection_status_c(void);
 static bool get_wifi_present_status_c(void);
 static bool read_sample_buffer(size_t begin, size_t length, void(*data_fn)(uint8_t*, size_t));
+static int get_data_output_baudrate_c(ei_device_data_output_baudrate_t *baudrate);
+void set_max_data_output_baudrate_c(void);
+void set_default_data_output_baudrate_c(void);
 static void zephyr_timer_handler(struct k_timer *dummy);
 
 /** Zephyr timer */
@@ -256,6 +265,36 @@ void EiDeviceNRF52::set_state(tEiState state)
 
         ei_program_state = eiStateIdle;
     }
+}
+
+/**
+ * @brief      Get the data output baudrate
+ *
+ * @param      baudrate    Baudrate used to output data
+ *
+ * @return     0
+ */
+int EiDeviceNRF52::get_data_output_baudrate(ei_device_data_output_baudrate_t *baudrate)
+{
+    return get_data_output_baudrate_c(baudrate);
+}
+
+/**
+ * @brief      Set output baudrate to max
+ *
+ */
+void EiDeviceNRF52::set_max_data_output_baudrate()
+{
+    set_max_data_output_baudrate_c();
+}
+
+/**
+ * @brief      Set output baudrate to default
+ *
+ */
+void EiDeviceNRF52::set_default_data_output_baudrate()
+{
+    set_default_data_output_baudrate_c();
 }
 
 /**
@@ -475,6 +514,55 @@ static bool get_wifi_connection_status_c(void)
 static bool get_wifi_present_status_c(void)
 {
     return false;
+}
+
+static int get_data_output_baudrate_c(ei_device_data_output_baudrate_t *baudrate)
+{
+    size_t length = strlen(ei_dev_max_data_output_baudrate.str);
+
+    if (length < 32)
+    {
+        memcpy(baudrate, &ei_dev_max_data_output_baudrate, sizeof(ei_device_data_output_baudrate_t));
+        return 0;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
+void set_max_data_output_baudrate_c(void)
+{
+    int ret;
+    struct uart_config cfg;
+
+    if(uart_config_get(uart, &cfg)) {
+        ei_printf("ERR: can't get UART config!\n");
+    }
+
+    cfg.baudrate = MAX_BAUD;
+
+    if(uart_configure(uart, &cfg)) {
+        ei_printf("ERR: can't set UART config!\n");
+    }
+}
+
+void set_default_data_output_baudrate_c(void)
+{
+    int ret;
+    struct uart_config cfg;
+
+    if (uart_config_get(uart, &cfg))
+    {
+        ei_printf("ERR: can't get UART config!\n");
+    }
+
+    cfg.baudrate = DEFAULT_BAUD;
+
+    if (uart_configure(uart, &cfg))
+    {
+        ei_printf("ERR: can't set UART config!\n");
+    }
 }
 
 /**

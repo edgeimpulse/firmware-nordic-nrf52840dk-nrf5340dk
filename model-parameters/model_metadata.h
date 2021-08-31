@@ -51,6 +51,7 @@
 #define EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE       (EI_CLASSIFIER_RAW_SAMPLE_COUNT * EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME)
 #define EI_CLASSIFIER_INPUT_WIDTH                0
 #define EI_CLASSIFIER_INPUT_HEIGHT               0
+#define EI_CLASSIFIER_INPUT_FRAMES               0
 #define EI_CLASSIFIER_INTERVAL_MS                16
 #define EI_CLASSIFIER_LABEL_COUNT                4
 #define EI_CLASSIFIER_HAS_ANOMALY                1
@@ -178,7 +179,6 @@ typedef struct {
     int low_frequency;
     int high_frequency;
     float pre_cof;
-    bool invert_features;
 } ei_dsp_config_audio_syntiant_t;
 
 uint8_t ei_dsp_config_506_axes[] = { 0, 1, 2 };

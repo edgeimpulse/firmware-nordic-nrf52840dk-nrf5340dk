@@ -8,6 +8,7 @@ typedef enum {
     EI_CONFIG_CONTEXT_ERROR = -2,
     EI_CONFIG_NO_CONTEXT = -8,
     EI_CONFIG_WIFI_CONN_FAILED = -9,
+    EI_CONFIG_NOT_IMPLEMENTED = -10
 } EI_CONFIG_ERROR;
 
 // same as https://github.com/ARMmbed/mbed-os/blob/d4122b0b3a091d3f1130f3bb0d91c96f9183e2de/features/netsocket/nsapi_types.h#L115

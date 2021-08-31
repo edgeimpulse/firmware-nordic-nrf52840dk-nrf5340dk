@@ -34,9 +34,9 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py
 
 # Install west and the nRF Connect SDK
-RUN pip3 install west
+RUN pip3 install west==0.11.0
 RUN mkdir /ncs
-RUN cd /ncs && west init -m https://github.com/nrfconnect/sdk-nrf --mr 38b7dd13ce1a8e9b8b84808d9ad56360dd35e0a0
+RUN cd /ncs && west init -m https://github.com/nrfconnect/sdk-nrf --mr 7a076c22df511ae6758e30bc69e47fcd78be14a3
 RUN cd /ncs && west update
 RUN cd /ncs && west zephyr-export
 RUN pip3 install -r /ncs/zephyr/scripts/requirements.txt
