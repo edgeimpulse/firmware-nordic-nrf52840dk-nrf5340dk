@@ -29,7 +29,7 @@
 #include <stdlib.h>
 
 /* Function prototypes ----------------------------------------------------- */
-void ei_microphone_init(void);
+bool ei_microphone_init(void);
 bool ei_microphone_inference_start(uint32_t n_samples);
 
 bool ei_microphone_sample_start(void);

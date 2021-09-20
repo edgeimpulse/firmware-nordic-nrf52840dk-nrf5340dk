@@ -28,9 +28,10 @@ void ei_init(void)
     }
 
     /* Setup the microphone sensor */
-    ei_microphone_init();
+    if(ei_microphone_init() == false) {
+        ei_printf("Microphone intitialization failed\r\n");
+    }
 
-    //ei_microphone_init();
 
     /* Intialize configuration */
     static ei_config_ctx_t config_ctx = { 0 };

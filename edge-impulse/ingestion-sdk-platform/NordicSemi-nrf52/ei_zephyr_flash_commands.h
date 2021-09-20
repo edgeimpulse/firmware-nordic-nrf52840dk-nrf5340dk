@@ -27,7 +27,7 @@ typedef enum
 
 #define ZEPHYR_FLASH_SECTOR_SIZE            (EXTERNAL_FLASH_DEVICE_SECTOR_SIZE)             /*< page size of external flash >*/
 #define EI_DATA_SAMPLES_OFFSET              (EXTERNAL_FLASH_DEVICE_SECTOR_SIZE*16)          /*< Offset for stored samples >*/
-#define ZEPHYR_TOTAL_FLASH_SIZE	            EXTERNAL_FLASH_DEVICE_SIZE                      /*< On board Flash size >*/
+#define ZEPHYR_TOTAL_FLASH_SIZE             ((EXTERNAL_FLASH_DEVICE_SIZE)/8)                /*< On board Flash size, size in DT is in bits >*/
 
 /* Prototypes -------------------------------------------------------------- */
 int ei_zephyr_flash_load_config(uint32_t *config, uint32_t config_size);

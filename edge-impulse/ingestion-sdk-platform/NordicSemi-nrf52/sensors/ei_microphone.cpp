@@ -195,6 +195,33 @@ static void pdm_data_handler(nrfx_pdm_evt_t const * p_evt)
 }
 
 /**
+ * @brief      PDM receive data handler
+ * @param[in]  p_evt  pdm event structure
+ */
+static void pdm_inference_data_handler(nrfx_pdm_evt_t const * p_evt)
+{
+    nrfx_err_t err = NRFX_SUCCESS;
+    static uint8_t buf_toggle = 0;
+
+    if(p_evt->error != 0){
+        ei_printf("PDM handler error ocured\n");
+        ei_printf("pdm_data_handler error: %d, %d  \n", p_evt->error, p_evt->buffer_requested);
+        return;
+    }
+    if(true == p_evt->buffer_requested){
+        buf_toggle ^= 1;
+        err = nrfx_pdm_buffer_set(pdm_buffer_temp[buf_toggle], AUDIO_DSP_SAMPLE_BUFFER_SIZE);
+        if(err != NRFX_SUCCESS){
+            ei_printf("PDM buffer init error: %d\n", err);
+        }
+    }
+    if(p_evt->buffer_released != NULL){
+        current_buff = pdm_buffer_temp[buf_toggle];
+        audio_buffer_inference_callback(&pdm_buffer_temp[buf_toggle], sizeof(pdm_buffer_temp)/2);
+    }
+}
+
+/**
  * @brief      Capture 2 channel pdm data every 100 ms.
  *             Waits for new data to be ready.
  *             Creates a 1 channel pdm array and calls callback function
@@ -330,12 +357,13 @@ static bool do_sanity_check(void)
     }
 }
 
-/* Public functions -------------------------------------------------------- */
-
 /**
- * @brief      Set the PDM mic to +34dB
+ * @brief Set the up nrf pdm object, call pdm init
+ *
+ * @param event_handler
+ * @return false on error
  */
-void ei_microphone_init(void)
+static bool setup_nrf_pdm(nrfx_pdm_event_handler_t  event_handler)
 {
     nrfx_err_t err;
 
@@ -358,13 +386,24 @@ void ei_microphone_init(void)
 #error "Unsupported build target was chosen!"
 #endif
 
-    err = nrfx_pdm_init(&config_pdm, pdm_data_handler);
+    err = nrfx_pdm_init(&config_pdm, event_handler);
     if(err != NRFX_SUCCESS){
-        ei_printf("PDM init error: %d\n", err);
+        return false;
     }
     else{
-        ei_printf("PDM init OK\n");
+        return true;
     }
+}
+
+/* Public functions -------------------------------------------------------- */
+
+/**
+ * @brief      Set the PDM mic to +34dB
+ * @return     false on error
+ */
+bool ei_microphone_init(void)
+{
+    return setup_nrf_pdm(pdm_data_handler);
 }
 
 bool ei_microphone_record(uint32_t sample_length_ms, uint32_t start_delay_ms, bool print_start_messages)
@@ -378,6 +417,10 @@ bool ei_microphone_record(uint32_t sample_length_ms, uint32_t start_delay_ms, bo
                   start_delay_ms);
     }
 
+    nrfx_pdm_uninit();
+    if(!setup_nrf_pdm(pdm_data_handler)) {
+        return false;
+    }
     err = nrfx_pdm_start();
     if(err != NRFX_SUCCESS){
         return false;
@@ -413,6 +456,10 @@ bool ei_microphone_inference_start(uint32_t n_samples)
 {
     nrfx_err_t err;
 
+    nrfx_pdm_uninit();
+    if(!setup_nrf_pdm(pdm_data_handler)) {
+        return false;
+    }
     err = nrfx_pdm_start();
     if(err != NRFX_SUCCESS){
         return false;
@@ -423,6 +470,7 @@ bool ei_microphone_inference_start(uint32_t n_samples)
     if(do_sanity_check() == false) {
         return false;
     }
+    nrfx_pdm_stop();
 
     inference.buffers[0] = (int16_t *)malloc(n_samples * sizeof(int16_t));
 
@@ -442,18 +490,35 @@ bool ei_microphone_inference_start(uint32_t n_samples)
     inference.n_samples  = n_samples;
     inference.buf_ready  = 0;
 
+    nrfx_pdm_uninit();
+    if(!setup_nrf_pdm(pdm_inference_data_handler)) {
+        return false;
+    }
+    err = nrfx_pdm_start();
+    if(err != NRFX_SUCCESS){
+        return false;
+    }
+
     return true;
 }
 
 bool ei_microphone_inference_record(void)
 {
+    bool ret = true;
+
+    if (inference.buf_ready == 1) {
+        ei_printf(
+            "Error sample buffer overrun. Decrease the number of slices per model window "
+            "(EI_CLASSIFIER_SLICES_PER_MODEL_WINDOW)\n");
+        ret = false;
+    }
+
     while (inference.buf_ready == 0) {
-        get_dsp_data(&audio_buffer_inference_callback);
     };
  
     inference.buf_ready = 0;
 
-    return true;
+    return ret;
 }
 
 /**
