@@ -299,7 +299,7 @@ static void at_start_snapshot_stream(char *width_s, char *height_s, char *baudra
 
 static void at_list_sensors() {
 
-    const ei_sensor_t *list;
+    const ei_device_sensor_t *list;
     size_t list_size;
 
     int r = EiDevice.get_sensor_list((const ei_device_sensor_t **)&list, &list_size);
@@ -310,7 +310,7 @@ static void at_list_sensors() {
 
     for (size_t ix = 0; ix < list_size; ix++) {
         ei_printf("Name: %s, Max sample length: %hus, Frequencies: [", list[ix].name, list[ix].max_sample_length_s);
-        for (size_t fx = 0; fx < EDGE_IMPULSE_MAX_FREQUENCIES; fx++) {
+        for (size_t fx = 0; fx < EI_MAX_FREQUENCIES; fx++) {
             if (list[ix].frequencies[fx] != 0.0f) {
                 if (fx != 0) {
                     ei_printf(", ");
@@ -550,7 +550,7 @@ static void at_scan_wifi() {
 
 static void at_sample_start(char *sensor_name) {
 
-    const ei_sensor_t *list;
+    const ei_device_sensor_t *list;
     size_t list_size;
 
     int r = EiDevice.get_sensor_list((const ei_device_sensor_t **)&list, &list_size);

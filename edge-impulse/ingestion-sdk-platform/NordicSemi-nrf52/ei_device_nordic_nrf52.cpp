@@ -118,6 +118,13 @@ EiDeviceNRF52::EiDeviceNRF52(void)
 #error "Unsupported build target was chosen!"
 #endif
 
+    /* Clear frequency arrays */
+    for(int i = 0; i < EI_DEVICE_N_SENSORS; i++) {
+        for(int y = 0; y < EI_MAX_FREQUENCIES; y++) {
+            sensors[i].frequencies[y] = 0.f;
+        }
+    }
+
     /* Setup device ID */
     snprintf(&ei_device_id[0], DEVICE_ID_MAX_SIZE, 
              "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -219,6 +226,8 @@ bool EiDeviceNRF52::get_sensor_list(const ei_device_sensor_t **sensor_list, size
     sensors[MICROPHONE].start_sampling_cb = &ei_microphone_sample_start;
     sensors[MICROPHONE].max_sample_length_s = available_bytes / (16000 * 2);
     sensors[MICROPHONE].frequencies[0] = 16000.0f;
+    sensors[MICROPHONE].frequencies[1] = 8000.0f;
+    sensors[MICROPHONE].frequencies[2] = 4000.0f;
 
     *sensor_list      = sensors;
     *sensor_list_size = EI_DEVICE_N_SENSORS;

@@ -47,8 +47,8 @@
 #endif
 
 /* Audio sampling config */
-#define AUDIO_SAMPLING_FREQUENCY            16000
-#define AUDIO_SAMPLES_PER_MS                (AUDIO_SAMPLING_FREQUENCY / 1000)
+#define DEFAULT_AUDIO_SAMPLING_FREQ         16000
+#define AUDIO_SAMPLES_PER_MS                (DEFAULT_AUDIO_SAMPLING_FREQ / 1000)
 #define AUDIO_DSP_SAMPLE_LENGTH_MS          16
 #define AUDIO_DSP_SAMPLE_RESOLUTION         (sizeof(short))
 #define AUDIO_DSP_SAMPLE_BUFFER_SIZE        (AUDIO_SAMPLES_PER_MS * AUDIO_DSP_SAMPLE_LENGTH_MS * AUDIO_DSP_SAMPLE_RESOLUTION) //4096
@@ -85,6 +85,7 @@ static bool record_ready = false;
 static uint32_t headerOffset;
 static uint32_t samples_required;
 static uint32_t current_sample;
+static uint32_t audio_sampling_frequency = DEFAULT_AUDIO_SAMPLING_FREQ;
 
 static inference_t inference;
 static int16_t max_audio_lvl = 0;
@@ -280,7 +281,7 @@ static bool create_header(void)
     sensor_aq_payload_info payload = {
         EiDevice.get_id_pointer(),
         EiDevice.get_type_pointer(),
-        1000.0f / static_cast<float>(AUDIO_SAMPLING_FREQUENCY),
+        1000.0f / static_cast<float>(audio_sampling_frequency),
         { { "audio", "wav" } }
     };
 
@@ -358,18 +359,36 @@ static bool do_sanity_check(void)
 }
 
 /**
+ * @brief PDM clock frequency calculation based on 32MHz clock and
+ * decimation filter ratio 80
+ * @details For more info on clock generation:
+ * https://infocenter.nordicsemi.com/index.jsp?topic=%2Fps_nrf5340%2Fpdm.html
+ * @param sampleRate in Hz
+ * @return uint32_t clk value
+ */
+static uint32_t pdm_clock_calculate(uint64_t sampleRate)
+{
+    const uint64_t PDM_RATIO = 80ULL;
+    const uint64_t CLK_32MHZ = 32000000ULL;
+    uint64_t clk_control = 4096ULL * (((sampleRate * PDM_RATIO) * 1048576ULL) / (CLK_32MHZ + ((sampleRate * PDM_RATIO) / 2ULL)));
+
+    return (uint32_t)clk_control;
+}
+
+/**
  * @brief Set the up nrf pdm object, call pdm init
  *
  * @param event_handler
+ * @param sample_rate in Hz
  * @return false on error
  */
-static bool setup_nrf_pdm(nrfx_pdm_event_handler_t  event_handler)
+static bool setup_nrf_pdm(nrfx_pdm_event_handler_t  event_handler, uint32_t sample_rate)
 {
     nrfx_err_t err;
 
     /* PDM driver configuration */
     nrfx_pdm_config_t config_pdm = NRFX_PDM_DEFAULT_CONFIG(PDM_CLK_PIN, PDM_DIN_PIN);
-    config_pdm.clock_freq = NRF_PDM_FREQ_1280K;
+    config_pdm.clock_freq = (nrf_pdm_freq_t)pdm_clock_calculate(sample_rate);
     config_pdm.ratio = NRF_PDM_RATIO_80X;
     config_pdm.edge = NRF_PDM_EDGE_LEFTRISING;
     config_pdm.gain_l = NRF_PDM_GAIN_MAXIMUM;
@@ -403,7 +422,7 @@ static bool setup_nrf_pdm(nrfx_pdm_event_handler_t  event_handler)
  */
 bool ei_microphone_init(void)
 {
-    return setup_nrf_pdm(pdm_data_handler);
+    return setup_nrf_pdm(pdm_data_handler, audio_sampling_frequency);
 }
 
 bool ei_microphone_record(uint32_t sample_length_ms, uint32_t start_delay_ms, bool print_start_messages)
@@ -418,13 +437,13 @@ bool ei_microphone_record(uint32_t sample_length_ms, uint32_t start_delay_ms, bo
     }
 
     nrfx_pdm_uninit();
-    if(!setup_nrf_pdm(pdm_data_handler)) {
+    if(!setup_nrf_pdm(pdm_data_handler, audio_sampling_frequency)) {
         return false;
     }
     err = nrfx_pdm_start();
     if(err != NRFX_SUCCESS){
         return false;
-    }
+    }    
 
     /* delay for the mic to erase the flash and overcome initial sound burst */
     if (start_delay_ms < 2000) {
@@ -452,12 +471,15 @@ bool ei_microphone_record(uint32_t sample_length_ms, uint32_t start_delay_ms, bo
     return true;
 }
 
-bool ei_microphone_inference_start(uint32_t n_samples)
+bool ei_microphone_inference_start(uint32_t n_samples, float interval_ms)
 {
     nrfx_err_t err;
 
+    /* Calclate sample rate from sample interval */
+    audio_sampling_frequency = (uint32_t)(1000.f / interval_ms);
+
     nrfx_pdm_uninit();
-    if(!setup_nrf_pdm(pdm_data_handler)) {
+    if(!setup_nrf_pdm(pdm_data_handler, audio_sampling_frequency)) {
         return false;
     }
     err = nrfx_pdm_start();
@@ -472,16 +494,16 @@ bool ei_microphone_inference_start(uint32_t n_samples)
     }
     nrfx_pdm_stop();
 
-    inference.buffers[0] = (int16_t *)malloc(n_samples * sizeof(int16_t));
+    inference.buffers[0] = (int16_t *)ei_malloc(n_samples * sizeof(int16_t));
 
     if(inference.buffers[0] == NULL) {
         return false;
     }
 
-    inference.buffers[1] = (int16_t *)malloc(n_samples * sizeof(int16_t));
+    inference.buffers[1] = (int16_t *)ei_malloc(n_samples * sizeof(int16_t));
 
     if(inference.buffers[1] == NULL) {
-        free(inference.buffers[0]);
+        ei_free(inference.buffers[0]);
         return false;
     }
 
@@ -491,7 +513,7 @@ bool ei_microphone_inference_start(uint32_t n_samples)
     inference.buf_ready  = 0;
 
     nrfx_pdm_uninit();
-    if(!setup_nrf_pdm(pdm_inference_data_handler)) {
+    if(!setup_nrf_pdm(pdm_inference_data_handler, audio_sampling_frequency)) {
         return false;
     }
     err = nrfx_pdm_start();
@@ -557,8 +579,8 @@ bool ei_microphone_inference_end(void)
         ei_printf("PDM Could not start PDM sampling, error = %d", nrfx_err);
     }
 
-    free(inference.buffers[0]);
-    free(inference.buffers[1]);
+    ei_free(inference.buffers[0]);
+    ei_free(inference.buffers[1]);
     return true;
 }
 
@@ -582,6 +604,8 @@ bool ei_microphone_sample_start(void)
     }
     ei_printf("\tFile name: %s\n", filename);
 
+    /* Calclate sample rate from sample interval */
+    audio_sampling_frequency = (uint32_t)(1000.f / ei_config_get_config()->sample_interval_ms);
 
     samples_required = (uint32_t)(((float)ei_config_get_config()->sample_length_ms) / ei_config_get_config()->sample_interval_ms);
 
@@ -616,7 +640,7 @@ bool ei_microphone_sample_start(void)
     }
 
     // load the first page in flash...
-    uint8_t *page_buffer = (uint8_t*)malloc(ei_zephyr_flash_get_block_size());
+    uint8_t *page_buffer = (uint8_t*)ei_malloc(ei_zephyr_flash_get_block_size());
     if (!page_buffer) {
         ei_printf("Failed to allocate a page buffer to write the hash\n");
         return false;
@@ -625,7 +649,7 @@ bool ei_microphone_sample_start(void)
     int j = ei_zephyr_flash_read_samples(page_buffer, 0, ei_zephyr_flash_get_block_size());
     if (j != 0) {
         ei_printf("Failed to read first page (%d)\n", j);
-        free(page_buffer);
+        ei_free(page_buffer);
         return false;
     }
 
@@ -651,13 +675,13 @@ bool ei_microphone_sample_start(void)
     j = ei_zephyr_flash_erase_sampledata(0, ei_zephyr_flash_get_block_size());
     if (j != 0) {
         ei_printf("Failed to erase first page (%d)\n", j);
-        free(page_buffer);
+        ei_free(page_buffer);
         return false;
     }
 
     j = ei_zephyr_flash_write_samples(page_buffer, 0, ei_zephyr_flash_get_block_size());
 
-    free(page_buffer);
+    ei_free(page_buffer);
 
     if (j != 0) {
         ei_printf("Failed to write first page with updated hash (%d)\n", j);

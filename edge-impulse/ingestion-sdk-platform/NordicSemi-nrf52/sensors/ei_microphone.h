@@ -30,7 +30,7 @@
 
 /* Function prototypes ----------------------------------------------------- */
 bool ei_microphone_init(void);
-bool ei_microphone_inference_start(uint32_t n_samples);
+bool ei_microphone_inference_start(uint32_t n_samples, float interval_ms);
 
 bool ei_microphone_sample_start(void);
 bool ei_microphone_inference_record(void);

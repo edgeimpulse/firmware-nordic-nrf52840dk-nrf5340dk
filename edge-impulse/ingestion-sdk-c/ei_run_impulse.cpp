@@ -136,8 +136,8 @@ void run_nn(bool debug)
 #elif defined(EI_CLASSIFIER_SENSOR) && EI_CLASSIFIER_SENSOR == EI_CLASSIFIER_SENSOR_MICROPHONE
 void run_nn(bool debug)
 {
-    if (EI_CLASSIFIER_FREQUENCY != 16000) {
-        ei_printf("ERR: Frequency is %d but can only sample at 16000Hz\n", (int)EI_CLASSIFIER_FREQUENCY);
+    if (EI_CLASSIFIER_FREQUENCY > 16000) {
+        ei_printf("ERR: Frequency is %d but can not be higher then 16000Hz\n", (int)EI_CLASSIFIER_FREQUENCY);
         return;
     }
 
@@ -153,7 +153,7 @@ void run_nn(bool debug)
     ei_printf("\tNo. of classes: %d\n", sizeof(ei_classifier_inferencing_categories) /
                                             sizeof(ei_classifier_inferencing_categories[0]));
 
-    if (ei_microphone_inference_start(EI_CLASSIFIER_RAW_SAMPLE_COUNT) == false) {
+    if (ei_microphone_inference_start(EI_CLASSIFIER_RAW_SAMPLE_COUNT, EI_CLASSIFIER_INTERVAL_MS) == false) {
         ei_printf("ERR: Failed to setup audio sampling\r\n");
         return;
     }
@@ -220,8 +220,8 @@ void run_nn(bool debug)
 
 void run_nn_continuous(bool debug)
 {
-    if (EI_CLASSIFIER_FREQUENCY != 16000) {
-        ei_printf("ERR: Frequency is %d but can only sample at 16000Hz\n", (int)EI_CLASSIFIER_FREQUENCY);
+    if (EI_CLASSIFIER_FREQUENCY > 16000) {
+        ei_printf("ERR: Frequency is %d but can not be higher then 16000Hz\n", (int)EI_CLASSIFIER_FREQUENCY);
         return;
     }
 
@@ -239,7 +239,7 @@ void run_nn_continuous(bool debug)
     ei_printf("Starting inferencing, press 'b' to break\n");
 
     run_classifier_init();
-    if(ei_microphone_inference_start(EI_CLASSIFIER_SLICE_SIZE) == false) {
+    if(ei_microphone_inference_start(EI_CLASSIFIER_SLICE_SIZE, EI_CLASSIFIER_INTERVAL_MS) == false) {
         ei_printf("ERR: Failed to start microphone\r\n");
     }
 

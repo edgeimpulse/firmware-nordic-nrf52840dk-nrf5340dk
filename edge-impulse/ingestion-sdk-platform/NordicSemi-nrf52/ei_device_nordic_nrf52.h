@@ -75,6 +75,7 @@ extern void ei_printf(const char *format, ...);
 
 /** Number of sensors used */
 #define EI_DEVICE_N_SENSORS		2
+#define EI_MAX_FREQUENCIES      5
 
 /** EI ingestion and inferencing state */
 typedef enum

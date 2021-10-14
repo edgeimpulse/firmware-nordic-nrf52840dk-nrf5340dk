@@ -23,6 +23,14 @@
 #ifndef _EIDSP_NUMPY_H_
 #define _EIDSP_NUMPY_H_
 
+// it's valid to include the SDK without a model, but there's information that we need
+// in model_metadata.h (like the FFT tables used).
+// if the compiler does not support the __has_include directive we'll assume that the
+// file exists.
+#ifndef __has_include
+#define __has_include 1
+#endif // __has_include
+
 #include <stdint.h>
 #include <string.h>
 #include <stddef.h>
@@ -33,7 +41,13 @@
 #include "memory.hpp"
 #include "dct/fast-dct-fft.h"
 #include "kissfft/kiss_fftr.h"
+#if __has_include("model-parameters/model_metadata.h")
+#include "model-parameters/model_metadata.h"
+#endif
+#if EIDSP_USE_CMSIS_DSP
 #include "edge-impulse-sdk/CMSIS/DSP/Include/arm_math.h"
+#include "edge-impulse-sdk/CMSIS/DSP/Include/arm_const_structs.h"
+#endif
 
 #ifdef __MBED__
 #include "mbed.h"
@@ -1364,7 +1378,7 @@ public:
         else {
             // hardware acceleration only works for the powers above...
             arm_rfft_fast_instance_f32 rfft_instance;
-            arm_status status = arm_rfft_fast_init_f32(&rfft_instance, n_fft);
+            int status = cmsis_rfft_init_f32(&rfft_instance, n_fft);
             if (status != ARM_MATH_SUCCESS) {
                 return status;
             }
@@ -1409,6 +1423,7 @@ public:
      * @returns 0 if OK
      */
     static int rfft(const EIDSP_i16 *src, size_t src_size, EIDSP_i16 *output, size_t output_size, size_t n_fft) {
+#if EIDSP_USE_CMSIS_DSP
         size_t n_fft_out_features = (n_fft / 2) + 1;
         if (output_size != n_fft_out_features) {
             EIDSP_ERR(EIDSP_BUFFER_SIZE_MISMATCH);
@@ -1458,8 +1473,10 @@ public:
             }
         }
         return EIDSP_OK;
+#else
+        return EIDSP_REQUIRES_CMSIS_DSP;
+#endif
     }
-
 
     /**
      * Compute the one-dimensional discrete Fourier Transform for real input.
@@ -1472,6 +1489,7 @@ public:
      * @returns 0 if OK
      */
     static int rfft(const EIDSP_i32 *src, size_t src_size, EIDSP_i32 *output, size_t output_size, size_t n_fft) {
+#if EIDSP_USE_CMSIS_DSP
         size_t n_fft_out_features = (n_fft / 2) + 1;
         if (output_size != n_fft_out_features) {
             EIDSP_ERR(EIDSP_BUFFER_SIZE_MISMATCH);
@@ -1527,6 +1545,9 @@ public:
             }
         }
         return EIDSP_OK;
+#else
+        return EIDSP_REQUIRES_CMSIS_DSP;
+#endif
     }
 
     /**
@@ -1579,7 +1600,7 @@ public:
         else {
             // hardware acceleration only works for the powers above...
             arm_rfft_fast_instance_f32 rfft_instance;
-            arm_status status = arm_rfft_fast_init_f32(&rfft_instance, n_fft);
+            int status = cmsis_rfft_init_f32(&rfft_instance, n_fft);
             if (status != ARM_MATH_SUCCESS) {
                 return status;
             }
@@ -1615,6 +1636,7 @@ public:
     }
 
     static int rfft(const EIDSP_i16 *src, size_t src_size, fft_complex_i16_t *output, size_t output_size, size_t n_fft) {
+#if EIDSP_USE_CMSIS_DSP
         size_t n_fft_out_features = (n_fft / 2) + 1;
         if (output_size != n_fft_out_features) {
             EIDSP_ERR(EIDSP_BUFFER_SIZE_MISMATCH);
@@ -1677,6 +1699,9 @@ public:
         }
 
         return EIDSP_OK;
+#else
+        return EIDSP_REQUIRES_CMSIS_DSP;
+#endif
     }
 
     /**
@@ -2549,6 +2574,140 @@ private:
             *pOut = 0;
         }
     }
+
+#if EIDSP_USE_CMSIS_DSP
+    /**
+     * Initialize a CMSIS-DSP fast rfft structure
+     * We do it this way as this means we can compile out fast_init calls which hints the compiler
+     * to which tables can be removed
+     */
+    static int cmsis_rfft_init_f32(arm_rfft_fast_instance_f32 *rfft_instance, const size_t n_fft)
+    {
+#if EI_CLASSIFIER_HAS_FFT_INFO == 1
+        arm_status status;
+        switch (n_fft) {
+#if EI_CLASSIFIER_LOAD_FFT_32 == 1
+            case 32: {
+                arm_cfft_instance_f32 *S = &(rfft_instance->Sint);
+                S->fftLen = 16U;
+                S->pTwiddle = NULL;
+                S->bitRevLength = arm_cfft_sR_f32_len16.bitRevLength;
+                S->pBitRevTable = arm_cfft_sR_f32_len16.pBitRevTable;
+                S->pTwiddle = arm_cfft_sR_f32_len16.pTwiddle;
+                rfft_instance->fftLenRFFT = 32U;
+                rfft_instance->pTwiddleRFFT = (float32_t *) twiddleCoef_rfft_32;
+                status = ARM_MATH_SUCCESS;
+                break;
+            }
+#endif
+#if EI_CLASSIFIER_LOAD_FFT_64 == 1
+            case 64: {
+                arm_cfft_instance_f32 *S = &(rfft_instance->Sint);
+                S->fftLen = 32U;
+                S->pTwiddle = NULL;
+                S->bitRevLength = arm_cfft_sR_f32_len32.bitRevLength;
+                S->pBitRevTable = arm_cfft_sR_f32_len32.pBitRevTable;
+                S->pTwiddle = arm_cfft_sR_f32_len32.pTwiddle;
+                rfft_instance->fftLenRFFT = 64U;
+                rfft_instance->pTwiddleRFFT = (float32_t *) twiddleCoef_rfft_64;
+                status = ARM_MATH_SUCCESS;
+                break;
+            }
+#endif
+#if EI_CLASSIFIER_LOAD_FFT_128 == 1
+            case 128: {
+                arm_cfft_instance_f32 *S = &(rfft_instance->Sint);
+                S->fftLen = 64U;
+                S->pTwiddle = NULL;
+                S->bitRevLength = arm_cfft_sR_f32_len64.bitRevLength;
+                S->pBitRevTable = arm_cfft_sR_f32_len64.pBitRevTable;
+                S->pTwiddle = arm_cfft_sR_f32_len64.pTwiddle;
+                rfft_instance->fftLenRFFT = 128U;
+                rfft_instance->pTwiddleRFFT = (float32_t *) twiddleCoef_rfft_128;
+                status = ARM_MATH_SUCCESS;
+                break;
+            }
+#endif
+#if EI_CLASSIFIER_LOAD_FFT_256 == 1
+            case 256: {
+                arm_cfft_instance_f32 *S = &(rfft_instance->Sint);
+                S->fftLen = 128U;
+                S->pTwiddle = NULL;
+                S->bitRevLength = arm_cfft_sR_f32_len128.bitRevLength;
+                S->pBitRevTable = arm_cfft_sR_f32_len128.pBitRevTable;
+                S->pTwiddle = arm_cfft_sR_f32_len128.pTwiddle;
+                rfft_instance->fftLenRFFT = 256U;
+                rfft_instance->pTwiddleRFFT = (float32_t *) twiddleCoef_rfft_256;
+                status = ARM_MATH_SUCCESS;
+                break;
+            }
+#endif
+#if EI_CLASSIFIER_LOAD_FFT_512 == 1
+            case 512: {
+                arm_cfft_instance_f32 *S = &(rfft_instance->Sint);
+                S->fftLen = 256U;
+                S->pTwiddle = NULL;
+                S->bitRevLength = arm_cfft_sR_f32_len256.bitRevLength;
+                S->pBitRevTable = arm_cfft_sR_f32_len256.pBitRevTable;
+                S->pTwiddle = arm_cfft_sR_f32_len256.pTwiddle;
+                rfft_instance->fftLenRFFT = 512U;
+                rfft_instance->pTwiddleRFFT = (float32_t *) twiddleCoef_rfft_512;
+                status = ARM_MATH_SUCCESS;
+                break;
+            }
+#endif
+#if EI_CLASSIFIER_LOAD_FFT_1024 == 1
+            case 1024: {
+                arm_cfft_instance_f32 *S = &(rfft_instance->Sint);
+                S->fftLen = 512U;
+                S->pTwiddle = NULL;
+                S->bitRevLength = arm_cfft_sR_f32_len512.bitRevLength;
+                S->pBitRevTable = arm_cfft_sR_f32_len512.pBitRevTable;
+                S->pTwiddle = arm_cfft_sR_f32_len512.pTwiddle;
+                rfft_instance->fftLenRFFT = 1024U;
+                rfft_instance->pTwiddleRFFT = (float32_t *) twiddleCoef_rfft_1024;
+                status = ARM_MATH_SUCCESS;
+                break;
+            }
+#endif
+#if EI_CLASSIFIER_LOAD_FFT_2048 == 1
+            case 2048: {
+                arm_cfft_instance_f32 *S = &(rfft_instance->Sint);
+                S->fftLen = 1024U;
+                S->pTwiddle = NULL;
+                S->bitRevLength = arm_cfft_sR_f32_len1024.bitRevLength;
+                S->pBitRevTable = arm_cfft_sR_f32_len1024.pBitRevTable;
+                S->pTwiddle = arm_cfft_sR_f32_len1024.pTwiddle;
+                rfft_instance->fftLenRFFT = 2048U;
+                rfft_instance->pTwiddleRFFT = (float32_t *) twiddleCoef_rfft_2048;
+                status = ARM_MATH_SUCCESS;
+                break;
+            }
+#endif
+#if EI_CLASSIFIER_LOAD_FFT_4096 == 1
+            case 4096: {
+                arm_cfft_instance_f32 *S = &(rfft_instance->Sint);
+                S->fftLen = 2048U;
+                S->pTwiddle = NULL;
+                S->bitRevLength = arm_cfft_sR_f32_len2048.bitRevLength;
+                S->pBitRevTable = arm_cfft_sR_f32_len2048.pBitRevTable;
+                S->pTwiddle = arm_cfft_sR_f32_len2048.pTwiddle;
+                rfft_instance->fftLenRFFT = 4096U;
+                rfft_instance->pTwiddleRFFT = (float32_t *) twiddleCoef_rfft_4096;
+                status = ARM_MATH_SUCCESS;
+                break;
+            }
+#endif
+            default:
+                return EIDSP_FFT_TABLE_NOT_LOADED;
+        }
+
+        return status;
+#else
+        return arm_rfft_fast_init_f32(rfft_instance, n_fft);
+#endif
+    }
+#endif // #if EIDSP_USE_CMSIS_DSP
 };
 
 } // namespace ei
