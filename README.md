@@ -167,4 +167,4 @@ You can easily add support for other accelerometers, PDM microphones or even com
 
 3. Compile and flash the application.
 
-You can find more information in the [Zephyr RTOS sensors API](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.4.99-dev1/zephyr/reference/peripherals/sensor.html) documentation, and the [Sensor samples](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.4.99-dev1/zephyr/samples/sensor/sensor.html).
+You can find more information in the [Zephyr RTOS sensors API](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.7.0/zephyr/reference/peripherals/sensor.html) documentation, and the [Sensor samples](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.7.0/zephyr/samples/sensor/sensor.html).

@@ -23,7 +23,6 @@
 #ifndef _EDGE_IMPULSE_AT_COMMANDS_H_
 #define _EDGE_IMPULSE_AT_COMMANDS_H_
 
-
 // maximum number of commands
 #ifndef EI_AT_MAX_CMDS
 #define EI_AT_MAX_CMDS      36

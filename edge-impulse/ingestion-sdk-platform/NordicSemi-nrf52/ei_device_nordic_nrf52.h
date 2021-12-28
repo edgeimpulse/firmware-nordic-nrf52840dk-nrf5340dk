@@ -132,6 +132,7 @@ public:
 /* Function prototypes ----------------------------------------------------- */
 void ei_command_line_handle(void);
 bool ei_user_invoke_stop(void);
+bool ei_ble_user_invoke_stop(void);
 void ei_write_string(char *data, int length);
 void ei_printfloat(int n_decimals, int n, ...);
 void ei_printf_float(float f);

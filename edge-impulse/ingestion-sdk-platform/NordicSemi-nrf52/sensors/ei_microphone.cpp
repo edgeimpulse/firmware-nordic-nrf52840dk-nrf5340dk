@@ -397,10 +397,10 @@ static bool setup_nrf_pdm(nrfx_pdm_event_handler_t  event_handler, uint32_t samp
     /* PDM interrupt configuration necessary for Zephyr */
 #if ((CONFIG_SOC_NRF52840 == 1) || \
        (CONFIG_SOC_NRF52840_QIAA == 1))
-    IRQ_DIRECT_CONNECT(PDM_IRQn, 6, nrfx_pdm_irq_handler, 0);
+    IRQ_DIRECT_CONNECT(PDM_IRQn, 5, nrfx_pdm_irq_handler, 0);
 #elif ((CONFIG_SOC_NRF5340_CPUAPP == 1) || \
        (CONFIG_SOC_NRF5340_CPUAPP_QKAA == 1))
-    IRQ_DIRECT_CONNECT(PDM0_IRQn, 6, nrfx_pdm_irq_handler, 0);
+    IRQ_DIRECT_CONNECT(PDM0_IRQn, 5, nrfx_pdm_irq_handler, 0);
 #else 
 #error "Unsupported build target was chosen!"
 #endif

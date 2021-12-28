@@ -26,6 +26,9 @@
 #include "ei_inertialsensor.h"
 #include "ei_microphone.h"
 #include "ei_device_nordic_nrf52.h"
+#include "ble_nus.h"
+
+static char ble_printf[64] = {0};
 
 #if defined(EI_CLASSIFIER_SENSOR) && EI_CLASSIFIER_SENSOR == EI_CLASSIFIER_SENSOR_ACCELEROMETER
 
@@ -127,8 +130,23 @@ void run_nn(bool debug)
         ei_printf("\r\n");
 #endif
 
-        if(ei_user_invoke_stop()) {
+        /*BLE PRINTF*/
+        for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {            
+            sprintf(ble_printf, "%s: %f\n", result.classification[ix].label, result.classification[ix].value);
+            ble_nus_send_data(ble_printf, strlen(ble_printf));
+        }
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+        sprintf(ble_printf, "anomaly score: %f\n", result.anomaly);
+        ble_nus_send_data(ble_printf, strlen(ble_printf));
+#endif
+
+        memset(ble_printf, 0x00, sizeof(ble_printf));
+        /*END BLE PRINTF*/
+
+        if(ei_user_invoke_stop() || ei_ble_user_invoke_stop()) {
             ei_printf("Inferencing stopped by user\r\n");
+            ble_nus_send_data("Inferencing stopped by user\n", strlen("Inferencing stopped by user\n"));
+            memset(ble_printf, 0x00, sizeof(ble_printf));
             break;
         }
     }
@@ -209,8 +227,23 @@ void run_nn(bool debug)
         ei_printf("\r\n");
 #endif
 
-        if(ei_user_invoke_stop()) {
+        /*BLE PRINTF*/
+        for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {            
+            sprintf(ble_printf, "%s: %f\n", result.classification[ix].label, result.classification[ix].value);
+            ble_nus_send_data(ble_printf, strlen(ble_printf));
+        }
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+        sprintf(ble_printf, "anomaly score: %f\n", result.anomaly);
+        ble_nus_send_data(ble_printf, strlen(ble_printf));
+#endif
+
+        memset(ble_printf, 0x00, sizeof(ble_printf));
+        /*END BLE PRINTF*/
+
+        if(ei_user_invoke_stop() || ei_ble_user_invoke_stop()) {
             ei_printf("Inferencing stopped by user\r\n");
+            ble_nus_send_data("Inferencing stopped by user\n", strlen("Inferencing stopped by user\n"));
+            memset(ble_printf, 0x00, sizeof(ble_printf));
             break;
         }
     }
@@ -220,6 +253,7 @@ void run_nn(bool debug)
 
 void run_nn_continuous(bool debug)
 {
+    bool stop_inferencing = false;
     if (EI_CLASSIFIER_FREQUENCY > 16000) {
         ei_printf("ERR: Frequency is %d but can not be higher then 16000Hz\n", (int)EI_CLASSIFIER_FREQUENCY);
         return;
@@ -243,7 +277,7 @@ void run_nn_continuous(bool debug)
         ei_printf("ERR: Failed to start microphone\r\n");
     }
 
-    while (1) {
+    while (stop_inferencing == false) {
 
         bool m = ei_microphone_inference_record();
         if (!m) {
@@ -279,9 +313,23 @@ void run_nn_continuous(bool debug)
 
             print_results = 0;
         }
+        /*BLE PRINTF*/
+        for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {            
+            sprintf(ble_printf, "%s: %f\n", result.classification[ix].label, result.classification[ix].value);
+            ble_nus_send_data(ble_printf, strlen(ble_printf));
+        }
+#if EI_CLASSIFIER_HAS_ANOMALY == 1
+        sprintf(ble_printf, "anomaly score: %f\n", result.anomaly);
+        ble_nus_send_data(ble_printf, strlen(ble_printf));
+#endif
 
-        if(ei_user_invoke_stop()) {
+        memset(ble_printf, 0x00, sizeof(ble_printf));
+        /*END BLE PRINTF*/
+
+        if(ei_user_invoke_stop() || ei_ble_user_invoke_stop()) {
             ei_printf("Inferencing stopped by user\r\n");
+            ble_nus_send_data("Inferencing stopped by user\n", strlen("Inferencing stopped by user\n"));
+            memset(ble_printf, 0x00, sizeof(ble_printf));
             break;
         }
     }
@@ -290,7 +338,7 @@ void run_nn_continuous(bool debug)
 }
 
 #else
-
+void run_nn(bool debug) {}
 #error "EI_CLASSIFIER_SENSOR not configured, cannot configure `run_nn`"
 
 #endif  // EI_CLASSIFIER_SENSOR

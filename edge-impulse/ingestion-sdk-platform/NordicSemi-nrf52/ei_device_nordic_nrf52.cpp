@@ -34,6 +34,8 @@
 #include <sys/printk.h>
 #include <drivers/uart.h>
 
+#include "ble_nus.h"
+
 extern "C" void ei_led_state_control(void);
 
 /* Constants --------------------------------------------------------------- */
@@ -458,6 +460,27 @@ bool ei_user_invoke_stop(void)
             break;
         }
         data = uart_getchar();
+    }
+
+    return stop_found;
+}
+
+bool ei_ble_user_invoke_stop(void)
+{
+    bool stop_found = false;
+    char data;
+
+    if(ei_ble_rcv_cmd_flag == false) {
+        return stop_found;
+    }
+
+    data = ei_ble_rcv_cmd_buffer[0];
+   
+    if(data == 'b') {
+        stop_found = true;
+        ei_ble_rcv_cmd_flag = false;
+        memset(ei_ble_rcv_cmd_buffer, 0x00, sizeof(ei_ble_rcv_cmd_buffer));
+        EiDevice.set_state(eiStateFinished);
     }
 
     return stop_found;
