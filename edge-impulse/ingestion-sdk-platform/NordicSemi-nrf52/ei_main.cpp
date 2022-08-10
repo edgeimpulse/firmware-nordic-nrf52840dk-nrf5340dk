@@ -41,7 +41,7 @@ void ei_init(void)
 
     /* Setup the inertial sensor */
     if(ei_inertial_init() == false) {
-        ei_printf("Inerial sensor communication error occured\r\n");
+        ei_printf("Inertial sensor communication error occured\r\n");
     }
 
     /* Setup the microphone sensor */

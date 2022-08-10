@@ -28,6 +28,7 @@
 #include "ei_inertialsensor.h"
 #include "ei_device_nordic_nrf52.h"
 #include "sensor_aq.h"
+#include "lsm303agr_reg.h"
 
 #include <drivers/i2c.h>
 
@@ -82,7 +83,7 @@ static bool device_init_correctly = false;
  */
 bool ei_inertial_init(void)
 {
-    uint8_t wai;
+    uint8_t device_id;
 
     i2c_dev = device_get_binding(I2C_DEV);
     if (!i2c_dev)
@@ -95,32 +96,48 @@ bool ei_inertial_init(void)
     dev_ctx.read_reg = platform_read;
     dev_ctx.handle = &i2c_dev;
 
-    /* check chip ID */
-    if(iis2dlpc_device_id_get(&dev_ctx, &wai) < 0){
+    /* read chip ID */
+    if (lsm303agr_xl_device_id_get(&dev_ctx, &device_id) < 0) {
+        ei_printf("Failed getting device id, \n");
         return false;
     }
-    
-    /* reset device */
-	if (iis2dlpc_reset_set(&dev_ctx, PROPERTY_ENABLE) < 0) { //PROPERTY_ENABLE = 1 
-		return false;
-	}
-	EiDevice.delay_ms(100);
 
-    /* set power mode */
-	if(  iis2dlpc_power_mode_set(&dev_ctx, IIS2DLPC_HIGH_PERFORMANCE) < 0){
-		return false;
-	}
+    /* Check chip ID */
+    if (device_id != LSM303AGR_ID_XL) {
+        ei_printf("Wrong device id. Expected %u. Received %u\n", LSM303AGR_ID_XL, device_id);
+        return false;
+    }
+    else {
+        ei_printf("Device ID correct\n");
+    }    
 
-/* set default odr and full scale for acc */
-	if(iis2dlpc_data_rate_set(&dev_ctx, IIS2DLPC_XL_ODR_1k6Hz) < 0){ //CONFIG_IIS2DLPC_ODR_1600=y
-		return false;
-	}
-
-	if(iis2dlpc_full_scale_set(&dev_ctx, IIS2DLPC_2g) < 0){  //CONFIG_IIS2DLPC_ACCEL_RANGE_2G=y
+    /* set data rate for accelermeter */
+	if (lsm303agr_xl_data_rate_set(&dev_ctx, LSM303AGR_XL_ODR_100Hz) < 0) {
+        ei_printf("Accel data rate set failed\n");
 		return false;
 	}
 
-    ei_printf("Sensor " ACCEL_DEVICE_LABEL " init OK\n");
+    /* set scale for accelerometer */
+    if (lsm303agr_xl_full_scale_set(&dev_ctx, LSM303AGR_2g) < 0) {
+        ei_printf("Accel scale set failed\n");
+		return false;
+	}
+
+    /* set block update for accelerometer */
+    if (lsm303agr_xl_block_data_update_set(&dev_ctx, PROPERTY_ENABLE) < 0) {
+        ei_printf("Accel block update set failed\n");
+		return false;
+    }
+
+    /* set operating mode for accelerometer */
+    if (lsm303agr_xl_operating_mode_set(&dev_ctx, LSM303AGR_HR_12bit) < 0) {
+        ei_printf("Accel operating mode set failed\n");
+		return false;        
+    }
+
+    EiDevice.delay_ms(100);
+
+    ei_printf("Sensor LSM303AGR init OK\n");
     device_init_correctly = true;
 
     return true;
@@ -133,30 +150,34 @@ bool ei_inertial_init(void)
  */
 int ei_inertial_read_data(void)
 {
-    uint8_t reg;
+    uint8_t ready_flag;
     int ret_val = 0;
 
     if(i2c_dev){
-        iis2dlpc_flag_data_ready_get(&dev_ctx, &reg);
+        lsm303agr_xl_data_ready_get(&dev_ctx, &ready_flag);
 
-        if(reg){
+        if(ready_flag)
+        {
             /* Read acceleration data */
             memset(data_raw_acceleration, 0x00, 3 * sizeof(int16_t));
-            iis2dlpc_acceleration_raw_get(&dev_ctx, data_raw_acceleration);
-            acceleration_g[0] = (iis2dlpc_from_fs2_lp1_to_mg(
-                                data_raw_acceleration[0]) * 9.81f) / 1000.f;
-            acceleration_g[1] = (iis2dlpc_from_fs2_lp1_to_mg(
-                                data_raw_acceleration[1]) * 9.81f) / 1000.f;
-            acceleration_g[2] = (iis2dlpc_from_fs2_lp1_to_mg(
-                                data_raw_acceleration[2]) * 9.81f) / 1000.f;
+            lsm303agr_acceleration_raw_get(&dev_ctx, data_raw_acceleration);
+            acceleration_g[0] = lsm303agr_from_fs_2g_hr_to_mg(data_raw_acceleration[0]) / 1000.f;
+            acceleration_g[1] = lsm303agr_from_fs_2g_hr_to_mg(data_raw_acceleration[1]) / 1000.f;
+            acceleration_g[2] = lsm303agr_from_fs_2g_hr_to_mg(data_raw_acceleration[2]) / 1000.f;
+
+            //ei_printf("X= %f, Y= %f, Z= %f\r\n", acceleration_g[0], acceleration_g[1], acceleration_g[2]);
 
             cb_sampler((const void *)&acceleration_g[0], SIZEOF_N_AXIS_SAMPLED);
 
             k_usleep(sample_interval_real_us);
         }
+        else {
+            //ei_printf("Data not ready\n");
+        }
     }
     //if there is no sensor initialized send all zeros
     else {
+        ei_printf("Sensor not initialized\n");
         acceleration_g[0] = 0.0f;
         acceleration_g[1] = 0.0f;
         acceleration_g[2] = 0.0f;
@@ -227,6 +248,9 @@ bool ei_inertial_setup_data_sampling(void)
     return true;
 }
 
+// Not sure why this address is needed for the ST board, rather than actual accelerometer address
+#define LSM303AGR_X_NUCLEO_IKS01A2_ADDRESS     (0x19)
+
 /*
  * @brief  Write generic device register (platform dependent)
  *
@@ -237,14 +261,12 @@ bool ei_inertial_setup_data_sampling(void)
  * @param  len       number of consecutive register to write
  *
  */
-static int32_t platform_write(void *handle, uint8_t reg,
-                              uint8_t *bufp,
-                              uint16_t len)
+static int32_t platform_write(void *handle, uint8_t reg, uint8_t *bufp, uint16_t len)
 {
     uint8_t temp_buf[10] = {0};
     temp_buf[0] = reg;
     memcpy(&temp_buf[1], bufp, len);
-    return i2c_write(i2c_dev, temp_buf, len+1, IIS2DLPC_ADDRESS);;
+    return i2c_write(i2c_dev, temp_buf, len+1, LSM303AGR_X_NUCLEO_IKS01A2_ADDRESS);
 }
 
 /*
@@ -257,10 +279,9 @@ static int32_t platform_write(void *handle, uint8_t reg,
  * @param  len       number of consecutive register to read
  *
  */
-static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp,
-                             uint16_t len)
+static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp, uint16_t len)
 {
-    return i2c_write_read(i2c_dev, IIS2DLPC_ADDRESS, &reg, 1, bufp, len);
+    return i2c_write_read(i2c_dev, LSM303AGR_X_NUCLEO_IKS01A2_ADDRESS, &reg, 1, bufp, len);
 }
 
 /* Static functions -------------------------------------------------------- */

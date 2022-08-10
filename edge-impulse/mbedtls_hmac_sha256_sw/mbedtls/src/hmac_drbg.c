@@ -74,7 +74,7 @@ int mbedtls_hmac_drbg_update_ret( mbedtls_hmac_drbg_context *ctx,
     unsigned char rounds = ( additional != NULL && add_len != 0 ) ? 2 : 1;
     unsigned char sep[1];
     unsigned char K[MBEDTLS_MD_MAX_SIZE];
-    int ret;
+    int ret = 0;
 
     for( sep[0] = 0; sep[0] < rounds; sep[0]++ )
     {
@@ -546,7 +546,7 @@ static size_t test_offset;
 static int hmac_drbg_self_test_entropy( void *data,
                                         unsigned char *buf, size_t len )
 {
-    const unsigned char *p = data;
+    const unsigned char *p = (const unsigned char *)data;
     memcpy( buf, p + test_offset, len );
     test_offset += len;
     return( 0 );

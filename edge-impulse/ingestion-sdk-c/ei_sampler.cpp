@@ -347,9 +347,9 @@ static void finish_and_upload(char *filename, uint32_t sample_length_ms)
  *
  * @return     true if all required samples are received. Caller should stop sampling,
  */
-static bool sample_data_callback(const void *sample_buf, uint32_t byteLenght)
+static bool sample_data_callback(const void *sample_buf, uint32_t byteLength)
 {
-    sensor_aq_add_data(&ei_mic_ctx, (float *)sample_buf, byteLenght / sizeof(float));
+    sensor_aq_add_data(&ei_mic_ctx, (float *)sample_buf, byteLength / sizeof(float));
 
     if (++current_sample > samples_required) {
         return true;
