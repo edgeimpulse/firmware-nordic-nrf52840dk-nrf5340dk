@@ -25,6 +25,9 @@ int main(void)
         ei_printf("Init LEDs on board error occured\r\n");
     }
 
+    // Separate the log output for a new run by a few lines
+    ei_printf("\n\n\n");
+
     /* Initialize Zephyr flash device */
     create_flash_device();
 
