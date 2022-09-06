@@ -24,7 +24,7 @@
 #include "ei_microphone.h"
 #include "ei_zephyr_flash_commands.h"
 #include "ei_device_nordic_nrf52.h"
-#include "ei_classifier_porting.h"
+#include "edge-impulse-sdk/porting/ei_classifier_porting.h"
 
 #include "ei_config_types.h"
 #include "sensor_aq_mbedtls_hs256.h"
@@ -42,7 +42,7 @@
        (CONFIG_SOC_NRF5340_CPUAPP_QKAA == 1))
 #define PDM_CLK_PIN                         37// 32+5 = p1.05
 #define PDM_DIN_PIN                         38// 32+6 = p1.06
-#else 
+#else
 #error "Unsupported build target was chosen!"
 #endif
 
@@ -244,7 +244,7 @@ static void finish_and_upload(char *filename, uint32_t sample_length_ms) {
 
     ei_printf("[1/1] Uploading file to Edge Impulse...\n");
 
-    ei_printf("Not uploading file, not connected to WiFi. Used buffer, from=%lu, to=%lu.\n", 0, (samples_required << 1) + headerOffset);
+    ei_printf("Not uploading file, not connected to WiFi. Used buffer, from=%u, to=%u.\n", 0, (samples_required << 1) + headerOffset);
 
 
     ei_printf("[1/1] Uploading file to Edge Impulse OK (took %d ms.)\n", 200);//upload_timer.read_ms());
@@ -401,7 +401,7 @@ static bool setup_nrf_pdm(nrfx_pdm_event_handler_t  event_handler, uint32_t samp
 #elif ((CONFIG_SOC_NRF5340_CPUAPP == 1) || \
        (CONFIG_SOC_NRF5340_CPUAPP_QKAA == 1))
     IRQ_DIRECT_CONNECT(PDM0_IRQn, 5, nrfx_pdm_irq_handler, 0);
-#else 
+#else
 #error "Unsupported build target was chosen!"
 #endif
 
@@ -428,11 +428,11 @@ bool ei_microphone_init(void)
 bool ei_microphone_record(uint32_t sample_length_ms, uint32_t start_delay_ms, bool print_start_messages)
 {
     nrfx_err_t err;
-    
+
     EiDevice.set_state(eiStateErasingFlash);
 
     if (print_start_messages) {
-        ei_printf("Starting in %lu ms... (or until all flash was erased)\n",
+        ei_printf("Starting in %u ms... (or until all flash was erased)\n",
                   start_delay_ms);
     }
 
@@ -443,7 +443,7 @@ bool ei_microphone_record(uint32_t sample_length_ms, uint32_t start_delay_ms, bo
     err = nrfx_pdm_start();
     if(err != NRFX_SUCCESS){
         return false;
-    }    
+    }
 
     /* delay for the mic to erase the flash and overcome initial sound burst */
     if (start_delay_ms < 2000) {
@@ -537,7 +537,7 @@ bool ei_microphone_inference_record(void)
 
     while (inference.buf_ready == 0) {
     };
- 
+
     inference.buf_ready = 0;
 
     return ret;
@@ -593,7 +593,7 @@ bool ei_microphone_sample_start(void)
 
     ei_printf("Sampling settings:\n");
     ei_printf("\tInterval: "); (ei_printf_float((float)ei_config_get_config()->sample_interval_ms));ei_printf(" ms.\n");
-    ei_printf("\tLength: %lu ms.\n", ei_config_get_config()->sample_length_ms);
+    ei_printf("\tLength: %u ms.\n", ei_config_get_config()->sample_length_ms);
     ei_printf("\tName: %s\n", ei_config_get_config()->sample_label);
     ei_printf("\tHMAC Key: %s\n", ei_config_get_config()->sample_hmac_key);
     char filename[256];

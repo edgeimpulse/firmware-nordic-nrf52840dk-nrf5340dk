@@ -26,8 +26,7 @@
 #include "edge-impulse-sdk/dsp/ei_utils.h"
 #include "ei_microphone.h"
 #include "ei_inertialsensor.h"
-#include "repl.h"
-
+#include "edge-impulse-sdk/porting/ei_classifier_porting.h"
 #include <cstdarg>
 #include "math.h"
 
@@ -62,7 +61,7 @@ typedef enum
 
 /** Data Output Baudrate */
 const ei_device_data_output_baudrate_t ei_dev_max_data_output_baudrate = {
-    xstr(MAX_BAUD),
+    ei_xstr(MAX_BAUD),
     MAX_BAUD,
 };
 
@@ -435,19 +434,6 @@ void ei_printf_float(float f)
     }    
 }
 
-/**
- * @brief      Get characters for uart pheripheral and send to repl
- */
-void ei_command_line_handle(void)
-{
-    char data = uart_getchar();
-
-    while(data != 0xFF) {
-        rx_callback(data);
-        data = uart_getchar();
-    }
-}
-
 bool ei_user_invoke_stop(void)
 {
     bool stop_found = false;
@@ -565,7 +551,6 @@ static int get_data_output_baudrate_c(ei_device_data_output_baudrate_t *baudrate
 
 void set_max_data_output_baudrate_c(void)
 {
-    int ret;
     struct uart_config cfg;
 
     if(uart_config_get(uart, &cfg)) {
@@ -581,7 +566,6 @@ void set_max_data_output_baudrate_c(void)
 
 void set_default_data_output_baudrate_c(void)
 {
-    int ret;
     struct uart_config cfg;
 
     if (uart_config_get(uart, &cfg))
@@ -772,7 +756,7 @@ char uart_getchar(void)
 {
     unsigned char rcv_char;
 
-    if (!uart_poll_in(uart, &rcv_char)) {
+    if (uart_poll_in(uart, &rcv_char) == 0) {
         return rcv_char;
     }
     else{
@@ -786,7 +770,7 @@ char uart_getchar(void)
  * @param[in] send_char Character to be sent over UART
  *
  */
-void uart_putchar(char send_char)
+void ei_putchar(char c)
 {
-    uart_poll_out(uart, send_char);
+    uart_poll_out(uart, c);
 }

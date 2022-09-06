@@ -1,6 +1,6 @@
 #include <zephyr.h>
 //#include "ei_run_classifier.h"
-#include "numpy.hpp"
+#include "edge-impulse-sdk/dsp/numpy.hpp"
 
 #include <sys/printk.h>
 #include "ei_device_nordic_nrf52.h"
@@ -10,8 +10,8 @@
 
 int main(void)
 {
-    /* This is needed so that output of printf 
-       is output immediately without buffering 
+    /* This is needed so that output of printf
+       is output immediately without buffering
     */
     setvbuf(stdout, NULL, _IONBF, 0);
 

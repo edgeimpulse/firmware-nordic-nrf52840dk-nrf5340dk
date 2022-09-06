@@ -29,7 +29,7 @@
  */
 
 #include <string.h>
-#include "sensor_aq.h"
+#include "firmware-sdk/sensor_aq.h"
 
 static int sensor_aq_signing_none_init(sensor_aq_signing_ctx_t *aq_ctx) {
     return 0;

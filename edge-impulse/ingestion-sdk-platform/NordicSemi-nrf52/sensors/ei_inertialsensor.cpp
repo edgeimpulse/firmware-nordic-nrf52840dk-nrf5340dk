@@ -27,7 +27,7 @@
 #include "ei_config_types.h"
 #include "ei_inertialsensor.h"
 #include "ei_device_nordic_nrf52.h"
-#include "sensor_aq.h"
+#include "firmware-sdk/sensor_aq.h"
 
 #include <drivers/i2c.h>
 
@@ -216,8 +216,7 @@ bool ei_inertial_setup_data_sampling(void)
         // How often new data is sampled in ms. (100Hz = every 10 ms.)
         ei_config_get_config()->sample_interval_ms,
         // The axes which you'll use. The units field needs to comply to SenML units (see https://www.iana.org/assignments/senml/senml.xhtml)
-        { { "accX", "m/s2" }, { "accY", "m/s2" }, { "accZ", "m/s2" },
-        /*{ "gyrX", "dps" }, { "gyrY", "dps" }, { "gyrZ", "dps" } */},
+        { { "accX", "m/s2" }, { "accY", "m/s2" }, { "accZ", "m/s2" }},
     };
 
     EiDevice.set_state(eiStateErasingFlash);

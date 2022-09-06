@@ -15,7 +15,7 @@
 
 **Software**
 
-* [nRF Connect SDK](https://www.nordicsemi.com/Software-and-tools/Software/nRF-Connect-SDK) - make sure you select version v1.7.0.
+* [nRF Connect SDK v1.9.1](https://www.nordicsemi.com/Software-and-tools/Software/nRF-Connect-SDK)
 * [GNU ARM Embedded Toolchain 9-2019-q4-major](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads).
 * [nRF Command Line Tools](https://www.nordicsemi.com/Software-and-tools/Development-Tools/nRF-Command-Line-Tools/Download).
 
@@ -25,11 +25,11 @@ Or you can build this application with Docker (see below).
 
 1. Install and configure the nRF Connect SDK:
     1. [nRF Connect SDK](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/gs_installing.html) in a *separate* folder from this repository (e.g. `~/repos/ncs`).
-    1. Check out NCS version 1.7.0:
+    1. Check out NCS version 1.9.1:
 
         ```
         $ cd ~/repos/ncs/nrf
-        $ git checkout v1.7.0
+        $ git checkout v1.9.1
         $ cd ..
         $ west update
         ```

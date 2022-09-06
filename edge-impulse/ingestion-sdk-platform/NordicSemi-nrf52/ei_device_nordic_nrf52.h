@@ -140,7 +140,6 @@ void BOARD_ledSetLedOn(uint8_t led1, uint8_t led2, uint8_t led3, uint8_t led4);
 int BOARD_ledInit(void);
 int uart_init(void);
 char uart_getchar(void);
-void uart_putchar(char send_char);
 
 /* Reference to object for external usage ---------------------------------- */
 extern EiDeviceNRF52 EiDevice;
