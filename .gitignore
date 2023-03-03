@@ -5,5 +5,5 @@ tags
 bootloader/
 modules/
 tools/
-#comment if you want to commit your model
 *.hex
+copy-sdk.sh
