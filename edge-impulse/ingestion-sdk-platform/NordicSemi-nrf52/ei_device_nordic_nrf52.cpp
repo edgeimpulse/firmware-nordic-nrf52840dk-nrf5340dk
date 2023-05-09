@@ -365,11 +365,33 @@ c_callback_read_sample_buffer EiDeviceNRF52::get_read_sample_buffer_function(voi
  */
 void ei_write_string(char *data, int length) 
 {
+    extern const struct device *uart;
+
     for( int i = 0; i < length; i++) {
-        printf("%c", *(data++));
+        uart_poll_out(uart, *(data++));
     }
 }
 
+/**
+ * @brief Overrides ei_classifier_porting version
+ * Uses direct uart out to avoid printing of additional \r\r
+ * @param format
+ * @param ...
+ */
+void ei_printf(const char *format, ...)
+{
+    extern const struct device *uart;
+    static char print_buf[256] = { 0 };
+
+    va_list args;
+    va_start(args, format);
+    int r = vsnprintf(print_buf, sizeof(print_buf), format, args);
+    va_end(args);
+
+    for(int i = 0; i < r; i++) {
+        uart_poll_out(uart, print_buf[i]);
+    }
+}
 
 void ei_printfloat(int n_decimals, int n, ...)
 {

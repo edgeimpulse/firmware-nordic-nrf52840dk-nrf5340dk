@@ -1,3 +1,20 @@
+/*
+ * Copyright (c) 2022 Edge Impulse Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an "AS
+ * IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include "ei_at_server.h"
 #include "ei_at_command_set.h"
 #include "edge-impulse-sdk/porting/ei_classifier_porting.h"
@@ -60,8 +77,8 @@ void ATServer::register_help_command(void)
 /**
  * @brief Register a new command. If the same command already exists
  * (by comparing \ref ATCommand_t.command field) then overwrite it.
- * 
- * @param command 
+ *
+ * @param command
  * @return true if the command has been registered
  * @return false if some sanity checks failed
  */
@@ -137,13 +154,13 @@ bool ATServer::print_help(void)
 {
     bool new_line_required = false;
 
-    /* 
+    /*
      * print list of commands in the following style
      * AT+COMMAND
      * AT+COMMAND?
      * AT+COMMAND=arg1,arg2
      *      Help text for the command
-     * 
+     *
      */
     ei_printf("AT Server\nCommand set version: " AT_COMMAND_VERSION "\n");
     ei_printf("Arguments in square brackets are optional, eg.:\nAT+CMD=arg1,[arg2]\n\n");
@@ -270,7 +287,7 @@ void ATServer::handle(char c)
                 ei_printf(
                     "\r\x1b[K> %s\x1b[%uG",
                     buffer.get_string().c_str(),
-                    buffer.get_position() + 3);
+                    (unsigned int)buffer.get_position() + 3);
             }
             // END key: \x1b[F
             else if (
@@ -282,7 +299,7 @@ void ATServer::handle(char c)
                 ei_printf(
                     "\r\x1b[K> %s\x1b[%uG",
                     buffer.get_string().c_str(),
-                    buffer.get_position() + 3);
+                    (unsigned int)buffer.get_position() + 3);
             }
             // DELETE key: \x1b[3\x7e
             else if (
@@ -292,7 +309,7 @@ void ATServer::handle(char c)
                     ei_printf(
                         "\r\x1b[K> %s\x1b[%uG",
                         buffer.get_string().c_str(),
-                        buffer.get_position() + 3);
+                        (unsigned int)buffer.get_position() + 3);
                 }
             }
             else {
@@ -331,7 +348,7 @@ void ATServer::handle(char c)
         if (buffer.do_backspace() == false) {
             break;
         }
-        ei_printf("\r\x1b[K> %s\x1b[%uG", buffer.get_string().c_str(), buffer.get_position() + 3);
+        ei_printf("\r\x1b[K> %s\x1b[%uG", buffer.get_string().c_str(), (unsigned int)buffer.get_position() + 3);
         break;
     case 0x1b: /* control character */
         // start processing characters as they are control sequence
@@ -345,7 +362,7 @@ void ATServer::handle(char c)
                 ei_putchar(c);
             }
             else {
-                ei_printf("\r> %s\x1b[%uG", buffer.get_string().c_str(), buffer.get_position() + 3);
+                ei_printf("\r> %s\x1b[%uG", buffer.get_string().c_str(), (unsigned int)buffer.get_position() + 3);
             }
         }
         break;

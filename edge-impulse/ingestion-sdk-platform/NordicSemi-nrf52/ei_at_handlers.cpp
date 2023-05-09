@@ -8,9 +8,13 @@
 #include "firmware-sdk/at-server/ei_at_command_set.h"
 #include "firmware-sdk/at-server/ei_at_server.h"
 #include "firmware-sdk/at_base64_lib.h"
+#include "firmware-sdk/ei_device_lib.h"
+#include "firmware-sdk/ei_device_interface.h"
 #include "ei_run_impulse.h"
 
-static bool read_encode_send_sample_buffer(size_t address, size_t length)
+#define TRANSFER_BUF_LEN 32
+
+bool read_encode_send_sample_buffer(size_t address, size_t length)
 {
     // we are encoiding data into base64, so it needs to be divisible by 3
     const int buffer_size = 513;
@@ -404,6 +408,21 @@ bool at_run_impulse_cont(void)
     return false;
 }
 
+bool at_run_impulse_static_data(const char **argv, const int argc)
+{
+
+    if (check_args_num(2, argc) == false) {
+        return false;
+    }
+
+    bool debug = (argv[0][0] == 'y');
+    size_t length = (size_t)atoi(argv[1]);
+
+    bool res = run_impulse_static_data(debug, length, TRANSFER_BUF_LEN);
+
+    return res;
+}
+
 /* help function for list files which is not currently implemented */
 void list_files_help_fn(void (*data_fn)(char *))
 {
@@ -421,7 +440,7 @@ ATServer *ei_at_init(void)
     //TODO: missing implementation in nRF5x
     // config_ctx.set_device_id = nullptr;
     config_ctx.get_device_type = EiDevice.get_type_function();
-    config_ctx.wifi_connection_status = EiDevice.get_wifi_connection_status_function(); 
+    config_ctx.wifi_connection_status = EiDevice.get_wifi_connection_status_function();
     config_ctx.wifi_present = EiDevice.get_wifi_present_status_function();
     config_ctx.load_config = &ei_zephyr_flash_load_config;
     config_ctx.save_config = &ei_zephyr_flash_save_config;
@@ -452,6 +471,7 @@ ATServer *ei_at_init(void)
     at->register_command(AT_UNLINKFILE, AT_UNLINKFILE_HELP_TEXT, nullptr, nullptr, at_unlink_file, AT_UNLINKFILE_ARGS);
     at->register_command(AT_RUNIMPULSE, AT_RUNIMPULSE_HELP_TEXT, at_run_impulse, nullptr, nullptr, nullptr);
     at->register_command(AT_RUNIMPULSECONT, AT_RUNIMPULSECONT_HELP_TEXT, at_run_impulse_cont, nullptr, nullptr, nullptr);
+    at->register_command(AT_RUNIMPULSESTATIC, AT_RUNIMPULSESTATIC_HELP_TEXT, nullptr, nullptr, at_run_impulse_static_data, AT_RUNIMPULSESTATIC_ARGS);
 
     return at;
 }
