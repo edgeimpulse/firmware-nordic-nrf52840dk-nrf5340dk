@@ -45,7 +45,7 @@ private:
     std::vector<ATCommand_t> registered_commands;
     LineBuffer buffer;
     ATParser parser;
-    void register_help_command(void);
+    void register_default_commands(void);
 
 protected:
     ATServer();

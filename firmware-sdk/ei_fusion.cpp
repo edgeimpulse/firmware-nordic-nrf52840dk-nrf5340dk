@@ -22,7 +22,6 @@
 #include "ei_sampler.h"
 #include <iomanip>
 #include <math.h>
-#include <sstream>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,7 +77,7 @@ static bool add_axis(int sensor_ix, char *name_buffer);
 static float highest_frequency(float *frequencies, size_t size);
 #if MULTI_FREQ_ENABLED == 1
 static float calc_gcd(float time1, float time2);
-static void get_multi_freq_combinations(int row, int col, float* mat_period, float* actual_comb, int ix, std::vector<float>* freq_comb, std::vector<int>* mem_fact, float allowed_period);
+static void get_multi_freq_combinations(int row, int col, float* mat_period, float* actual_comb, int ix, vector<float>* freq_comb, vector<int>* mem_fact, float allowed_period);
 static void clean_multi_freq_combinations(int n, int col, float* mat_period, float* actual_comb, int ix, float* actual_max);
 static bool ei_fusion_calc_optimal_frequencies(uint8_t row, uint8_t col, float freq_objective);
 #endif
@@ -105,7 +104,7 @@ bool ei_add_sensor_to_fusion_list(ei_device_fusion_sensor_t sensor)
 bool ei_connect_fusion_list(const char *input_list, ei_fusion_list_format format)
 {
     char *buff;
-    bool is_fusion;
+    bool is_fusion = false;
 
     num_fusions = 0;
     num_fusion_axis = 0;
@@ -228,7 +227,7 @@ void ei_fusion_multi_read_axis_data(uint8_t flag_read)
 
            sensor_data = NULL;
            if ((fusion_sensors[i]->read_data != NULL)
-                   && ((flag_read & (1 << i)) == (1 << i)) ) { 
+                   && ((flag_read & (1 << i)) == (1 << i)) ) {
                sensor_data = fusion_sensors[i]->read_data(
                    fusion_sensors[i]->num_axis); // read sensor data from sensor file
            }
@@ -237,10 +236,10 @@ void ei_fusion_multi_read_axis_data(uint8_t flag_read)
                for (int j = 0; j < fusion_sensors[i]->num_axis; j++, loc++) {
                    if (fusion_sensors[i]->axis_flag_used & (1 << j)) {
                        data[loc] = *(sensor_data + j); // add sensor data to fusion data
-                       if (old_data != nullptr) { 
+                       if (old_data != nullptr) {
 
                         old_data[loc] = data[loc];       // store in old structure
-                        }                       
+                        }
                    }
                }
            }
@@ -255,7 +254,7 @@ void ei_fusion_multi_read_axis_data(uint8_t flag_read)
 
        if (fusion_cb_sampler(
                (const void *)&data[0],
-               (sizeof(fusion_sample_format_t) * num_fusion_axis))) { 
+               (sizeof(fusion_sample_format_t) * num_fusion_axis))) {
            dev->stop_sample_thread(); // if last sample detach
            ei_free(old_data);
            // send fusion data to sampler
@@ -264,7 +263,7 @@ void ei_fusion_multi_read_axis_data(uint8_t flag_read)
        ei_free(data);
    }
    else {
-       if (fusion_cb_sampler(nullptr, 0)) { 
+       if (fusion_cb_sampler(nullptr, 0)) {
            dev->stop_sample_thread(); // if last sample detach
            ei_free(old_data);
        }
@@ -314,8 +313,8 @@ bool ei_multi_fusion_sample_start(sampler_callback callsampler, float multi_samp
     if ((fusion_cb_sampler == NULL) || (num_fusions < 2)) {   /* */
         return false;
     }
-    else {        
-        if (ei_fusion_calc_optimal_frequencies(num_fusions, EI_MAX_FREQUENCIES, (1000.0f/multi_sample_interval_ms)) == false) { 
+    else {
+        if (ei_fusion_calc_optimal_frequencies(num_fusions, EI_MAX_FREQUENCIES, (1000.0f/multi_sample_interval_ms)) == false) {
             ei_printf("ERR: Unable to calculate the optimal frequency\n");
             return false;
         }
@@ -338,11 +337,6 @@ bool ei_fusion_setup_data_sampling(void)
     if (num_fusion_axis == 0) {
         return false;
     }
-
-#if MULTI_FREQ_ENABLED == 1
-    memset(multi_sampling_freq, 0, sizeof(multi_sampling_freq));
-    memset(multi_freq_combination, 0, sizeof(multi_freq_combination));
-#endif
 
     // Calculate number of bytes available on flash for sampling, reserve 1 block for header + overhead
     uint32_t available_bytes = (mem->get_available_sample_blocks() - 1) * mem->block_size;
@@ -376,13 +370,6 @@ bool ei_fusion_setup_data_sampling(void)
             payload_bytes += strlen(fusion_sensors[i]->sensors[j].name) +
                 strlen(fusion_sensors[i]->sensors[j].units) + SENSORS_BYTE_OFFSET;
         }
-#if (MULTI_FREQ_ENABLED == 1)
-        if (num_fusions > 1) {
-            for (int j = 0; j < EI_MAX_FREQUENCIES; j++) { 
-                multi_freq_combination[i][j] = (fusion_sensors[i]->frequencies[j]);    // storing all possible frequencies for each sensor
-            }            
-        }
-#endif
     }
 
     // use heap for unit name, add 4 bytes for padding
@@ -492,8 +479,8 @@ const vector<fused_sensors_t> &ei_get_sensor_fusion_list(void)
 static void print_fusion_list(int r, uint32_t ingest_memory_size)
 {
     /* A temporary array to store all combination one by one */
-    int data[r];
-    int arr[fusable_sensor_list.size()];
+    auto data = new int[r];
+    auto arr = new int[fusable_sensor_list.size()];
 
     for (unsigned int i = 0; i < fusable_sensor_list.size(); i++) {
         arr[i] = i;
@@ -501,6 +488,8 @@ static void print_fusion_list(int r, uint32_t ingest_memory_size)
 
     /* Print all combination using temporary array 'data[]' */
     print_all_combinations(arr, data, 0, 0, r, ingest_memory_size);
+    delete[] data;
+    delete[] arr;
 }
 
 /**
@@ -521,21 +510,32 @@ static void print_all_combinations(
     int r,
     uint32_t ingest_memory_size)
 {
-    stringstream buf;
+    string buf;
     fused_sensors_t sens;
     /* Print sensor string if requested combinations found */
     if (index == r) {
         int local_num_fusion_axis = 0;
         for (int j = 0; j < r; j++) {
 
-            buf << fusable_sensor_list[data[j]].name;
+            string full_name = fusable_sensor_list[data[j]].name;
+
+            int axis_name_start = full_name.find("(");
+
+            /* Print axes info if not fusioned with other sensors */
+            if(axis_name_start && index != 1) {
+                buf += full_name.substr(0, axis_name_start - 1);
+            }
+            else {
+                buf += full_name;
+            }
+
             local_num_fusion_axis += fusable_sensor_list[data[j]].num_axis;
 
             if (j + 1 < r) {
-                buf << " + ";
+                buf += " + ";
             }
         }
-        sens.name = buf.str();
+        sens.name = buf;
 
         if (index == 1) {
             float frequency =
@@ -550,19 +550,19 @@ static void print_all_combinations(
         }
         else {
 #if (MULTI_FREQ_ENABLED == 1)
-            float mat_period[NUM_MAX_FUSIONS][EI_MAX_FREQUENCIES] = {0.0};
-            float mat_freq[NUM_MAX_FUSIONS][EI_MAX_FREQUENCIES] = {0.0};
+            float mat_period[NUM_MAX_FUSIONS][EI_MAX_FREQUENCIES] = {{0.0}};
+            float mat_freq[NUM_MAX_FUSIONS][EI_MAX_FREQUENCIES] = {{0.0}};
             float combination[NUM_MAX_FUSIONS] = {0.0};
             float max_freq = MULTI_FREQ_MAX_FREQ_NOT_SET;
             int starting_ix = 0;
             const int mem_inc_threshold = MULTI_FREQ_MAX_INC_FACTOR;
             int how_many_under_threshold = 0;
 
-            std::vector<float> found_freq_combinations;
-            std::vector<int> mem_increase_factor;
+            vector<float> found_freq_combinations;
+            vector<int> mem_increase_factor;
 
             for (int j = 0; j < r; j++) {                         // per sensors
-                for (int z = 0; z < EI_MAX_FREQUENCIES; z++) {     // per freq                
+                for (int z = 0; z < EI_MAX_FREQUENCIES; z++) {     // per freq
                     if (fusable_sensor_list[data[j]].frequencies[z] != 0.0) {
                         mat_period[j][z] = 1.f/fusable_sensor_list[data[j]].frequencies[z];
                         mat_freq[j][z] = fusable_sensor_list[data[j]].frequencies[z];
@@ -570,16 +570,16 @@ static void print_all_combinations(
                 }
             }
 
-            clean_multi_freq_combinations(r, EI_MAX_FREQUENCIES, (float*)mat_freq, combination, starting_ix, &max_freq); 
+            clean_multi_freq_combinations(r, EI_MAX_FREQUENCIES, (float*)mat_freq, combination, starting_ix, &max_freq);
             get_multi_freq_combinations(r, EI_MAX_FREQUENCIES, (float*)mat_period, combination, starting_ix, &found_freq_combinations, &mem_increase_factor, max_freq);
 
-            for (int j = 0; j < mem_increase_factor.size(); j++) {
+            for (size_t j = 0; j < mem_increase_factor.size(); j++) {
                 if (mem_increase_factor.at(j) < mem_inc_threshold) {
                     how_many_under_threshold++;
                 }
             }
-            
-            for (int j = 0; j < found_freq_combinations.size(); j++) {
+
+            for (size_t j = 0; j < found_freq_combinations.size(); j++) {
                 if ((how_many_under_threshold > 0) && (mem_increase_factor.at(j) < mem_inc_threshold)) {
                     sens.frequencies.push_back(found_freq_combinations.at(j));
                 }
@@ -590,22 +590,12 @@ static void print_all_combinations(
 
             if (sens.frequencies.size() > 0) {
                 float frequency = highest_frequency(&sens.frequencies[0], sens.frequencies.size());
-                sens.max_sample_length = 
+                sens.max_sample_length =
                     (int)(ingest_memory_size / (frequency * (sizeof(fusion_sample_format_t) * local_num_fusion_axis) * 2));
-            }         
+            }
             else {
                 sens.max_sample_length  = 0;
-            }   
-
-#if 0
-            for (float &local_freq : found_freq_combinations) {   /* for each found freq */
-                sens.max_sample_length =
-                    (int)(ingest_memory_size / (local_freq * (sizeof(fusion_sample_format_t) * local_num_fusion_axis) * 2));
-            
-                sens.frequencies.push_back(local_freq);
             }
-#endif
-
 #else
             // fusion, use set freq
             sens.max_sample_length =
@@ -649,9 +639,23 @@ static int generate_bit_flags(int dec)
 static bool add_sensor(int sensor_ix, char *name_buffer)
 {
     bool added_loc;
-    bool is_fusion = false;
+    bool is_fusion = false;    
 
-    if (strstr(name_buffer, fusable_sensor_list[sensor_ix].name)) { // is a matching sensor
+    char* buf = (char *)ei_malloc(strlen(fusable_sensor_list[sensor_ix].name) + 1);
+
+    if (buf == NULL) {
+        return false;
+    }
+
+    memset(buf, 0, strlen(fusable_sensor_list[sensor_ix].name) + 1);
+    strncpy(buf, fusable_sensor_list[sensor_ix].name, strlen(fusable_sensor_list[sensor_ix].name));
+
+    if (strstr(fusable_sensor_list[sensor_ix].name, "(")
+        && strstr(name_buffer, "(") == NULL ) {  // full name has ( ) => BUT not the fusion string received, which probably means is using abbreviation
+        buf[strcspn(fusable_sensor_list[sensor_ix].name , " (")] = '\0';
+    }
+
+    if (strstr(name_buffer, buf)) { // is a matching sensor
         added_loc = false;
         for (int j = 0; j < num_fusions; j++) {
             if (strstr(
@@ -673,6 +677,8 @@ static bool add_sensor(int sensor_ix, char *name_buffer)
         }
         is_fusion = true;
     }
+
+    ei_free(buf);
 
     return is_fusion;
 }
@@ -772,27 +778,27 @@ static float calc_gcd(float fnum1, float fnum2)
         {
             break;
         }
-        
+
         temp = fnum1;
         fnum1 = fnum2;
         fnum2 = temp - floor(temp / fnum2) * fnum2;
     }
-    
+
     return fnum1;
 }
 
 /**
  * @brief Get the multi freq combinations object
- * 
- * @param n 
- * @param mat_period 
- * @param actual_comb 
- * @param ix 
- * @param psens 
+ *
+ * @param n
+ * @param mat_period
+ * @param actual_comb
+ * @param ix
+ * @param psens
  */
-static void get_multi_freq_combinations(int n, int col, float* mat_period, float* actual_comb, int ix, std::vector<float>* freq_comb, std::vector<int>* mem_fact, float allowed_period)
-{   
-    int i;    
+static void get_multi_freq_combinations(int n, int col, float* mat_period, float* actual_comb, int ix, vector<float>* freq_comb, vector<int>* mem_fact, float allowed_period)
+{
+    int i;
 
     if (ix == n) {
         for (i = 0; i < n; i++) {
@@ -808,9 +814,9 @@ static void get_multi_freq_combinations(int n, int col, float* mat_period, float
         if ((freq > allowed_period) && (allowed_period != MULTI_FREQ_MAX_FREQ_NOT_SET)) {
             return;
         }
-        
-        if (std::find(std::begin(*freq_comb), std::end(*freq_comb), freq) != std::end(*freq_comb)) {  /* already present, let's check if better mem increase */
-            int j;
+
+        if (find(begin(*freq_comb), end(*freq_comb), freq) != end(*freq_comb)) {  /* already present, let's check if better mem increase */
+            size_t j;
             for (j = 0; j < freq_comb->size(); j++) {
                 if (freq_comb->at(j) == freq) {
                     break;
@@ -826,8 +832,8 @@ static void get_multi_freq_combinations(int n, int col, float* mat_period, float
                 }
                 else {
                     local_mem_fac += (int)(freq*actual_comb[i]);
-                }                
-                
+                }
+
             }
             if (local_mem_fac < mem_fact->at(j)) {
                 mem_fact->at(j) = local_mem_fac;
@@ -860,13 +866,13 @@ static void get_multi_freq_combinations(int n, int col, float* mat_period, float
 }
 
 /**
- * @brief 
- * 
- * @param n 
- * @param col 
- * @param ix 
- * @param actual_comb 
- * @param actual_max 
+ * @brief
+ *
+ * @param n
+ * @param col
+ * @param ix
+ * @param actual_comb
+ * @param actual_max
  */
 static void clean_multi_freq_combinations(int n, int col,float* mat_period, float* actual_comb, int ix, float* actual_max)
 {
@@ -893,7 +899,6 @@ static void clean_multi_freq_combinations(int n, int col,float* mat_period, floa
         if (natural_mult == true) {
             float temp_max = 0.0f;
 
-            uint32_t temp_index;
             for (int i = 0; i < (n-1); i++) {
                 temp_max = actual_comb[i];
 
@@ -906,7 +911,7 @@ static void clean_multi_freq_combinations(int n, int col,float* mat_period, floa
 
             if (temp_max > *actual_max) {
                 *actual_max = temp_max;
-            }            
+            }
         }
 
         return;
@@ -921,12 +926,12 @@ static void clean_multi_freq_combinations(int n, int col,float* mat_period, floa
 }
 
 /**
- * @brief 
- * 
- * @param mat_period 
- * @param actual_comb 
- * @return true 
- * @return false 
+ * @brief
+ *
+ * @param mat_period
+ * @param actual_comb
+ * @return true
+ * @return false
  */
 static bool ei_fusion_calc_optimal_frequencies(uint8_t row, uint8_t col, float freq_objective)
 {
@@ -937,15 +942,25 @@ static bool ei_fusion_calc_optimal_frequencies(uint8_t row, uint8_t col, float f
         return false;
     }
 
+    memset(multi_sampling_freq, 0, sizeof(multi_sampling_freq));
+    memset(multi_freq_combination, 0, sizeof(multi_freq_combination));
+
+    for (int i = 0; i < row; i++) {
+        for (int j = 0; j < col; j++) {
+            //
+            multi_freq_combination[i][j] = fusion_sensors[i]->frequencies[j];
+        }
+    }
+
     for (int i = 0; i < row; i++) {  // for each sensors
         optimal_values = INT32_MAX;
 
         for (int j = 0; j < col; j++) {  // for each freq
-            if ((freq_objective >= multi_freq_combination[i][j]) 
-                && (multi_freq_combination[i][j] != 0.0f)) { 
-                if (fmodf(freq_objective, multi_freq_combination[i][j]) == 0.0f) {            
+            if ((freq_objective >= multi_freq_combination[i][j])
+                && (multi_freq_combination[i][j] != 0.0f)) {
+                if (fmodf(freq_objective, multi_freq_combination[i][j]) == 0.0f) {
                     int32_t temp = freq_objective/multi_freq_combination[i][j];
-                    if (temp < optimal_values) {                        
+                    if (temp < optimal_values) {
                         optimal_values = temp;
                         multi_sampling_freq[i] = multi_freq_combination[i][j];
                     }
@@ -955,10 +970,10 @@ static bool ei_fusion_calc_optimal_frequencies(uint8_t row, uint8_t col, float f
 
         if (optimal_values != INT32_MAX) {
             found++;
-        }        
+        }
     }
 
-    if (found == row) { 
+    if (found == row) {
         return true;
     }
     else{
@@ -967,10 +982,10 @@ static bool ei_fusion_calc_optimal_frequencies(uint8_t row, uint8_t col, float f
 }
 
 /**
- * @brief 
- * 
- * @param numbers 
- * @param how_may 
+ * @brief
+ *
+ * @param numbers
+ * @param how_may
  * @return float the gcd of the array
  */
 float ei_fusion_calc_multi_gcd(float* numbers, uint8_t how_many)
@@ -979,17 +994,22 @@ float ei_fusion_calc_multi_gcd(float* numbers, uint8_t how_many)
     float inttime1;
 
 
-    if (how_many < 2) { 
+    if (how_many < 2) {
         return 0.f;
     }
 
     inttime1 = numbers[0];
 
-    for (i = 1; i < how_many; i++) { 
+    for (i = 1; i < how_many; i++) {
         inttime1 = calc_gcd(inttime1, (numbers[i]));
     }
 
     return (inttime1);
+}
+
+bool ei_is_fusion(void)
+{
+    return (num_fusions > 1);
 }
 
 #endif

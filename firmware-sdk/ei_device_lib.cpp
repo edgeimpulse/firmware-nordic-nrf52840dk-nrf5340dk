@@ -38,7 +38,7 @@ extern char* ei_classifier_inferencing_categories[];
  *
  * @return     true if user requested stop
  */
-extern bool ei_user_invoke_stop_lib(void)
+__attribute__((weak)) bool ei_user_invoke_stop_lib(void)
 {
     char ch;
     while(1) {
@@ -106,7 +106,7 @@ bool run_impulse_static_data(bool debug, size_t length, size_t buf_len)
         return false;
     }
 
-    temp_buf = (uint8_t*)ei_malloc(buf_len);
+    temp_buf = (uint8_t*)ei_calloc(buf_len + 1, sizeof(uint8_t));
     if (temp_buf == NULL) {
         ei_printf("ERR: Memory allocation for serial read buffer failed\r\n");
         ei_free(data_pt);

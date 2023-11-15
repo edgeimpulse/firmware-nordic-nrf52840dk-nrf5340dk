@@ -1,9 +1,30 @@
+/* Edge Impulse ingestion SDK
+ * Copyright (c) 2021 EdgeImpulse Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 /* Include ----------------------------------------------------------------- */
-#include <zephyr.h>
-#include <drivers/flash.h>
-#include <storage/flash_map.h>
-#include <device.h>
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/flash.h>
+#include <zephyr/storage/flash_map.h>
+#include <zephyr/device.h>
 
 #include "ei_zephyr_flash_commands.h"
 #include "ei_device_nordic_nrf52.h"
@@ -47,8 +68,8 @@ const static struct device *flash_dev;
 void create_flash_device()
 {
 #if SAMPLE_MEMORY == SERIAL_FLASH
-    flash_dev = device_get_binding(EXTERNAL_FLASH_DEVICE);
-    ei_printf("Using flash device: " EXTERNAL_FLASH_DEVICE "\n");
+    flash_dev = DEVICE_DT_GET(EXTERNAL_FLASH_DEVICE);
+    //ei_printf("Using flash device: " DEVICE_DT_GET(EXTERNAL_FLASH_DEVICE) "\n");
     //ei_printf("Flash device size: %d bytes\n", ZEPHYR_TOTAL_FLASH_SIZE);
     //ei_printf("Flash device sector size: %d bytes\n", EXTERNAL_FLASH_DEVICE_SECTOR_SIZE);
 #endif
@@ -267,7 +288,7 @@ void zephyr_flash_write1(uint8_t * buf)
     // uint32_t buf_array_1[4] = { TEST_DATA_WORD_0, TEST_DATA_WORD_1,
     //                 TEST_DATA_WORD_2, TEST_DATA_WORD_3 };
 
-    flash_write_protection_set(flash_dev, false);
+    // flash_write_protection_set(flash_dev, false);
     for (int i = 0; i < 1; i++) {
         offset = + i;
         ei_printf("   Attempted to write 0x%x at 0x%x\n", temp, offset);
@@ -281,7 +302,7 @@ void zephyr_flash_read()
 {
     int rc;
     ei_printf("\nTest 1: Flash erase\n");
-    flash_write_protection_set(flash_dev, false);
+    // flash_write_protection_set(flash_dev, false);
 
     rc =  ei_zephyr_flash_erase_sampledata(0, 4096);
     //rc = flash_erase_sectors(EI_DATA_SAMPLES_OFFSET, 1);
@@ -334,16 +355,16 @@ void zephyr_flash_read()
  */
 static int flash_erase_sectors(uint32_t startAddress, uint32_t nSectors)
 {
-    flash_write_protection_set(flash_dev, false);
+    // flash_write_protection_set(flash_dev, false);
 
     if (flash_erase(flash_dev,
                     startAddress,
                     ZEPHYR_FLASH_SECTOR_SIZE * nSectors) != 0) {
-        flash_write_protection_set(flash_dev, true);
+        // flash_write_protection_set(flash_dev, true);
         return ZEPHYR_FLASH_CMD_ERASE_ERROR;
     }
     else {
-        flash_write_protection_set(flash_dev, true);
+        // flash_write_protection_set(flash_dev, true);
         return ZEPHYR_FLASH_CMD_OK;
     }
 }
@@ -387,10 +408,10 @@ static int flash_write_data(uint8_t *buffer,
 {
     int err = 0;
     //ei_printf("%s: 0x%x 0x%x 0x%x 0x%x\n", __FUNCTION__, buffer[0], buffer[1], buffer[2], buffer[3]);
-    err = flash_write_protection_set(flash_dev, false);
-    if (err != 0) {
-        return ZEPHYR_FLASH_CMD_READ_ERROR;
-    }
+    // err = flash_write_protection_set(flash_dev, false);
+    // if (err != 0) {
+    //     return ZEPHYR_FLASH_CMD_READ_ERROR;
+    // }
     //ei_printf("flash_write_protection_set: err: %d\n", err);
 
     err = flash_write(flash_dev, address_offset, buffer, num_bytes);

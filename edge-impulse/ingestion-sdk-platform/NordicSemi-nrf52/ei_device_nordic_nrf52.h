@@ -25,10 +25,10 @@
 
 /* Include ----------------------------------------------------------------- */
 #include "ei_device_info.h"
-#include <zephyr.h>
-#include <device.h>
-#include <devicetree.h>
-#include <drivers/gpio.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/gpio.h>
 
 #include <cstdio>
 
@@ -39,36 +39,10 @@
  * See: https://devzone.nordicsemi.com/f/nordic-q-a/76793/baudrate-on-vcom-on-nrf52840dk */
 #define MAX_BAUD 230400
 
-/* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
 #define LED1_NODE DT_ALIAS(led1)
 #define LED2_NODE DT_ALIAS(led2)
 #define LED3_NODE DT_ALIAS(led3)
-
-#if DT_NODE_HAS_STATUS(LED0_NODE, okay) && DT_NODE_HAS_STATUS(LED1_NODE, okay) && \
-	DT_NODE_HAS_STATUS(LED2_NODE, okay) && DT_NODE_HAS_STATUS(LED3_NODE, okay) 
-#define LED_DEVICE	DT_GPIO_LABEL(LED0_NODE, gpios)
-#define PIN_LED0	DT_GPIO_PIN(LED0_NODE, gpios)
-#define PIN_LED1	DT_GPIO_PIN(LED1_NODE, gpios)
-#define PIN_LED2	DT_GPIO_PIN(LED2_NODE, gpios)
-#define PIN_LED3	DT_GPIO_PIN(LED3_NODE, gpios)
-#define FLAGS_LED0	DT_GPIO_FLAGS(LED0_NODE, gpios)
-#define FLAGS_LED1	DT_GPIO_FLAGS(LED1_NODE, gpios)
-#define FLAGS_LED2	DT_GPIO_FLAGS(LED2_NODE, gpios)
-#define FLAGS_LED3	DT_GPIO_FLAGS(LED3_NODE, gpios)
-#else
-/* A build error here means your board isn't set up to blink an LED. */
-#error "Unsupported board: led0/1/2/3 devicetree alias is not defined"
-#define LED_DEVICE	""
-#define PIN_LED0	0
-#define FLAGS_LED0	0
-#define PIN_LED1	0
-#define FLAGS_LED1	0
-#define PIN_LED2	0
-#define FLAGS_LED2	0
-#define PIN_LED3	0
-#define FLAGS_LED4	0
-#endif
 
 //#define ei_printf(...) printf(__VA_ARGS__)
 extern void ei_printf(const char *format, ...);
@@ -136,7 +110,7 @@ bool ei_ble_user_invoke_stop(void);
 void ei_write_string(char *data, int length);
 void ei_printfloat(int n_decimals, int n, ...);
 void ei_printf_float(float f);
-void BOARD_ledSetLedOn(uint8_t led1, uint8_t led2, uint8_t led3, uint8_t led4);
+void BOARD_ledSetLedOn(uint8_t led_1, uint8_t led_2, uint8_t led_3, uint8_t led_4);
 int BOARD_ledInit(void);
 int uart_init(void);
 char uart_getchar(void);

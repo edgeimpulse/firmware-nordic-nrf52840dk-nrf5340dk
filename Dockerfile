@@ -19,24 +19,22 @@ RUN if [ $(uname -m) = "x86_64" ]; then export ARCH=x86_64; else export ARCH=aar
     ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake && \
     rm /opt/cmake/cmake-3.21.3-linux-$ARCH.sh
 
-# GCC ARM
+# Zephyr SDK
 RUN if [ $(uname -m) = "x86_64" ]; then export ARCH=x86_64; else export ARCH=aarch64; fi && \
-    cd .. && \
-    wget https://cdn.edgeimpulse.com/build-system/gcc-arm-none-eabi-9-2019-q4-major-$ARCH-linux.tar.bz2 && \
-    tar xjf gcc-arm-none-eabi-9-2019-q4-major-$ARCH-linux.tar.bz2 && \
-    echo "PATH=$PATH:/gcc-arm-none-eabi-9-2019-q4-major/bin" >> ~/.bashrc && \
-    cd /app
-
-ENV PATH="/gcc-arm-none-eabi-9-2019-q4-major/bin:${PATH}"
-ENV ZEPHYR_TOOLCHAIN_VARIANT=gnuarmemb
-ENV GNUARMEMB_TOOLCHAIN_PATH="/gcc-arm-none-eabi-9-2019-q4-major"
+    cd /opt && \
+    wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.1/zephyr-sdk-0.16.1_linux-${ARCH}_minimal.tar.xz && \
+    tar xf zephyr-sdk-0.16.1_linux-${ARCH}_minimal.tar.xz && \
+    cd zephyr-sdk-0.16.1 && \
+    ./setup.sh -t arm-zephyr-eabi -c
+ENV ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+ENV ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk-0.16.1
 
 # Install west and the nRF Connect SDK
 RUN python3 -m pip install pip==21.2.4
-RUN pip3 install west==0.12.0
+RUN pip3 install west==1.0.0
 RUN pip3 install ecdsa==0.17.0
 RUN mkdir /ncs
-RUN cd /ncs && west init -m https://github.com/nrfconnect/sdk-nrf --mr v1.9.1
+RUN cd /ncs && west init -m https://github.com/nrfconnect/sdk-nrf --mr v2.4.0
 RUN cd /ncs && west update
 RUN cd /ncs && west zephyr-export
 RUN pip3 install -r /ncs/zephyr/scripts/requirements.txt

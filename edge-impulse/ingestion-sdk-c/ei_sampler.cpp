@@ -31,7 +31,7 @@
 
 #include "sensor_aq_mbedtls_hs256.h"
 
-#include "zephyr.h"
+#include "zephyr/kernel.h"
 
 #ifdef __MBED__
 #include "mbed.h"

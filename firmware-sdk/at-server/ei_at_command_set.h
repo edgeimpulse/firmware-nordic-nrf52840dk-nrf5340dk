@@ -18,7 +18,10 @@
 #ifndef AT_COMMAND_SET_H
 #define AT_COMMAND_SET_H
 
-#define AT_COMMAND_VERSION "1.7.0"
+/* Edge Impulse CLi is supporting AT Command set version up to currently locked major/minor.
+ * If you upgrading major/minor here without upgrading CLI tools, they won't work with the changed firmware.
+ */
+#define AT_COMMAND_VERSION "1.8.0"
 
 /*************************************************************************************************/
 /* mandatory commands required by Edge Impulse CLI Tools*/
@@ -94,11 +97,18 @@
 #define AT_READRAW_HELP_TEXT    "Read raw from flash"
 #define AT_BOOTMODE             "BOOTMODE"
 #define AT_BOOTMODE_HELP_TEXT   "Jump to bootloader"
+#define AT_INFO                 "INFO"
+#define AT_INFO_HELP_TEXT       "Prints details about compiled firmware and ML model"
 
 /*************************************************************************************************/
 /* HELP is not necessary as it is built-in into ATServer and
    any custom implementation is ignored. For documentation purposes only */
 #define AT_HELP           "HELP"
 #define AT_HELP_HELP_TEXT "Lists all commands"
+
+/*************************************************************************************************/
+/* Common AT commands handlers */
+
+bool at_info(void);
 
 #endif /* AT_COMMAND_SET_H */

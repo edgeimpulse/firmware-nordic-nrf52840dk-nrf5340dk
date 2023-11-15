@@ -34,7 +34,6 @@ set(INCLUDES
     edge-impulse/ingestion-sdk-platform/NordicSemi-nrf52
     edge-impulse/ingestion-sdk-platform/NordicSemi-nrf52/sensors
     edge-impulse/mbedtls_hmac_sha256_sw
-    edge-impulse/QCBOR/inc
     edge-impulse
     )
 include_directories(${INCLUDES})
@@ -43,9 +42,9 @@ RECURSIVE_FIND_FILE(MODEL_FILES "tflite-model" "*.cpp")
 
 RECURSIVE_FIND_FILE(PLATFORM_FILES "edge-impulse/ingestion-sdk-platform/NordicSemi-nrf52" "*.cpp")
 RECURSIVE_FIND_FILE(INGESTION_FILES "edge-impulse/ingestion-sdk-c/" "*.cpp")
-RECURSIVE_FIND_FILE(QCBOR_FILES "edge-impulse/QCBOR/src" "*.c")
 RECURSIVE_FIND_FILE(MBEDTLS_FILES "edge-impulse/mbedtls_hmac_sha256_sw/mbedtls/src" "*.c")
 RECURSIVE_FIND_FILE(FIRMWARE_SDK_FILES "firmware-sdk" "*.cpp")
+RECURSIVE_FIND_FILE(FIRMWARE_SDK_C_FILES "firmware-sdk" "*.c")
 
 # TODO: exlude fusion due to types conflict, remove after porting whole firmware
 list(FILTER FIRMWARE_SDK_FILES EXCLUDE REGEX ".*ei_fusion\\.cpp$")
@@ -56,10 +55,10 @@ list(APPEND SOURCE_FILES ${CC_FILES})
 list(APPEND SOURCE_FILES ${MODEL_FILES})
 list(APPEND SOURCE_FILES ${PLATFORM_FILES})
 list(APPEND SOURCE_FILES ${INGESTION_FILES})
-list(APPEND SOURCE_FILES ${QCBOR_FILES})
 list(APPEND SOURCE_FILES ${MBEDTLS_FILES})
 list(APPEND SOURCE_FILES ${PORTING_FILES})
 list(APPEND SOURCE_FILES ${FIRMWARE_SDK_FILES})
+list(APPEND SOURCE_FILES ${FIRMWARE_SDK_C_FILES})
 
 # add all sources to the project
 target_sources(app PRIVATE ${SOURCE_FILES})

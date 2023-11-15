@@ -27,12 +27,12 @@
 #include "ei_config_types.h"
 #include "ei_inertialsensor.h"
 #include "ei_device_nordic_nrf52.h"
-#include "firmware-sdk/sensor_aq.h"
+#include "firmware-sdk/sensor-aq/sensor_aq.h"
 
-#include <drivers/i2c.h>
+#include <zephyr/drivers/i2c.h>
 
 
-#include <zephyr.h>
+#include <zephyr/kernel.h>
 
 /* Constant defines -------------------------------------------------------- */
 #define CONVERT_G_TO_MS2    9.80665f
@@ -46,10 +46,10 @@
 
 #if ((CONFIG_SOC_NRF52840 == 1) || \
        (CONFIG_SOC_NRF52840_QIAA == 1))
-#define I2C_DEV "I2C_0"
+#define I2C_DEV i2c0
 #elif ((CONFIG_SOC_NRF5340_CPUAPP == 1) || \
        (CONFIG_SOC_NRF5340_CPUAPP_QKAA == 1))
-#define I2C_DEV "I2C_1"
+#define I2C_DEV i2c1
 #else 
 #error "Unsupported build target was chosen!"
 #endif
@@ -84,8 +84,8 @@ bool ei_inertial_init(void)
 {
     uint8_t wai;
 
-    i2c_dev = device_get_binding(I2C_DEV);
-    if (!i2c_dev)
+    i2c_dev = DEVICE_DT_GET(DT_NODELABEL(I2C_DEV));
+    if (i2c_dev == NULL || !device_is_ready(i2c_dev))
     {
         ei_printf("No device I2C found; did initialization fail?\n");
         return false;

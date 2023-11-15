@@ -1,3 +1,25 @@
+/* Edge Impulse ingestion SDK
+ * Copyright (c) 2021 EdgeImpulse Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #ifndef EI_ZEPHYR_FLASH_COMMANDS_H
 #define EI_ZEPHYR_FLASH_COMMANDS_H
 
@@ -21,7 +43,7 @@ typedef enum
 #define MX25R_RETRY                         (10000)/**!< Number of retries for SPI Flash */
 
 /* Flash device label, that is fetched from device tree */
-#define EXTERNAL_FLASH_DEVICE               DT_LABEL(DT_INST(0, nordic_qspi_nor))           /*< configured in device tree of the board >*/
+#define EXTERNAL_FLASH_DEVICE               DT_INST(0, nordic_qspi_nor)           /*< configured in device tree of the board >*/
 #define EXTERNAL_FLASH_DEVICE_SIZE          DT_PROP(DT_INST(0, nordic_qspi_nor), size)      /*< configured in device tree of the board >*/
 #define EXTERNAL_FLASH_DEVICE_SECTOR_SIZE   CONFIG_NORDIC_QSPI_NOR_FLASH_LAYOUT_PAGE_SIZE   /*< configured in prj.conf of the board >*/
 

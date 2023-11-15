@@ -38,7 +38,7 @@
   // let's assume the file is there
   #include "ei_fusion_sensors_config.h"
 #endif
-#include "sensor_aq.h"
+#include "sensor-aq/sensor_aq.h"
 #include <string>
 #include <vector>
 
@@ -100,6 +100,7 @@ bool ei_fusion_setup_data_sampling(void);
 bool ei_multi_fusion_sample_start(sampler_callback callsampler, float multi_sample_interval_ms);
 void ei_fusion_multi_read_axis_data(uint8_t flag_read);
 float ei_fusion_calc_multi_gcd(float* numbers, uint8_t how_many);
+bool ei_is_fusion(void);
 #endif
 
 

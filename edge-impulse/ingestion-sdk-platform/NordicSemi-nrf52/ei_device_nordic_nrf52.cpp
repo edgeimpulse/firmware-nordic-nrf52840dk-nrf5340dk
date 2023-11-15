@@ -30,8 +30,11 @@
 #include <cstdarg>
 #include "math.h"
 
-#include <sys/printk.h>
-#include <drivers/uart.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/drivers/uart.h>
+
+#include <zephyr/kernel.h>
+#include <zephyr/drivers/gpio.h>
 
 #include "ble_nus.h"
 
@@ -46,6 +49,10 @@ extern "C" void ei_led_state_control(void);
 
 /** Led device struct */
 const struct device *led_dev;
+static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET(LED1_NODE, gpios);
+static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET(LED2_NODE, gpios);
+static const struct gpio_dt_spec led3 = GPIO_DT_SPEC_GET(LED3_NODE, gpios);
 const struct device *uart;
 
 /** Max size for device id array */
@@ -683,22 +690,22 @@ static void zephyr_timer_handler(struct k_timer *dummy)
 /**
  * @brief      Sets development kit LEDs on and off
  *
- * @param[in]  led1     set LED1 on and off (true/false)
- * @param[in]  led2     set LED2 on and off (true/false)
- * @param[in]  led3     set LED3 on and off (true/false)
- * @param[in]  led4     set LED4 on and off (true/false)
+ * @param[in]  led_1     set LED1 on and off (true/false)
+ * @param[in]  led_2     set LED2 on and off (true/false)
+ * @param[in]  led_3     set LED3 on and off (true/false)
+ * @param[in]  led_4     set LED4 on and off (true/false)
  *
  */
-void BOARD_ledSetLedOn(uint8_t led1, uint8_t led2, uint8_t led3, uint8_t led4)
+void BOARD_ledSetLedOn(uint8_t led_1, uint8_t led_2, uint8_t led_3, uint8_t led_4)
 {
     /** set led1 */
-    if(led1 < 1) gpio_pin_set(led_dev, PIN_LED0, 0); else gpio_pin_set(led_dev, PIN_LED0, 1);
+    if(led_1 < 1) gpio_pin_set_dt(&led0, 0); else gpio_pin_set_dt(&led0, 1);
     /** set led3 */
-    if(led2 < 1) gpio_pin_set(led_dev, PIN_LED1, 0); else gpio_pin_set(led_dev, PIN_LED1, 1);
+    if(led_2 < 1) gpio_pin_set_dt(&led1, 0); else gpio_pin_set_dt(&led1, 1);
     /** set led3 */
-    if(led3 < 1) gpio_pin_set(led_dev, PIN_LED2, 0); else gpio_pin_set(led_dev, PIN_LED2, 1);
+    if(led_3 < 1) gpio_pin_set_dt(&led2, 0); else gpio_pin_set_dt(&led2, 1);
     /** set led4 */
-    if(led4 < 1) gpio_pin_set(led_dev, PIN_LED3, 0); else gpio_pin_set(led_dev, PIN_LED3, 1);
+    if(led_4 < 1) gpio_pin_set_dt(&led3, 0); else gpio_pin_set_dt(&led3, 1);
 }
 
 /**
@@ -712,31 +719,26 @@ int BOARD_ledInit(void)
 {
     int ret = 0;
 
-    led_dev = device_get_binding(LED_DEVICE);
-    if(led_dev == NULL)
-    {
-        return EIO;
-    }
     /** init gpio for led0 */
-    ret = gpio_pin_configure(led_dev, PIN_LED0, GPIO_OUTPUT_ACTIVE | FLAGS_LED0);
+    ret = gpio_pin_configure_dt(&led0, GPIO_OUTPUT_ACTIVE);
     if(ret < 0)
     {
         return EIO;
     }
     /** init gpio for led1 */
-    ret = gpio_pin_configure(led_dev, PIN_LED1, GPIO_OUTPUT_ACTIVE | FLAGS_LED1);
+    ret = gpio_pin_configure_dt(&led1, GPIO_OUTPUT_ACTIVE);
     if(ret < 0)
     {
         return EIO;
     }
     /** init gpio for led2 */
-    ret = gpio_pin_configure(led_dev, PIN_LED2, GPIO_OUTPUT_ACTIVE | FLAGS_LED2);
+    ret = gpio_pin_configure_dt(&led2, GPIO_OUTPUT_ACTIVE);
     if(ret < 0)
     {
         return EIO;
     }
     /** init gpio for led3 */
-    ret = gpio_pin_configure(led_dev, PIN_LED3, GPIO_OUTPUT_ACTIVE | FLAGS_LED3);
+    ret = gpio_pin_configure_dt(&led3, GPIO_OUTPUT_ACTIVE);
     if(ret < 0)
     {
         return EIO;
@@ -759,7 +761,7 @@ int uart_init(void)
 {
 	int err = 0;
 
-	uart = device_get_binding(DT_LABEL(DT_NODELABEL(uart0)));
+	uart = DEVICE_DT_GET(DT_NODELABEL(uart0));
 	if (!uart) {
 		return -ENXIO;
 	}

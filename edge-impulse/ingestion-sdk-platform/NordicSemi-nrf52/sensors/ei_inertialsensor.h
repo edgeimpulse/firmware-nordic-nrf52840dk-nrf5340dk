@@ -25,10 +25,10 @@
 
 /* Include ----------------------------------------------------------------- */
 #include "ei_sampler.h"
-#include <zephyr.h>
-#include <device.h>
-#include <devicetree.h>
-#include <drivers/sensor.h>
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/sensor.h>
 #include "iis2dlpc_reg.h"
 
 #define ACCEL_DEVICE_LABEL "IIS2DLPC"

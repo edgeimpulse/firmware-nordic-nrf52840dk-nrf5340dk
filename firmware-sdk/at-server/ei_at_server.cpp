@@ -37,14 +37,14 @@ static bool print_help_handler(void)
 ATServer::ATServer()
     : history(default_history_size)
 {
-    register_help_command();
+    register_default_commands();
 }
 
 ATServer::ATServer(ATCommand_t *commands, size_t length, size_t max_history_size)
     : history(max_history_size)
 {
     if (length == 0 || commands == nullptr) {
-        register_help_command();
+        register_default_commands();
         return;
     }
 
@@ -53,7 +53,7 @@ ATServer::ATServer(ATCommand_t *commands, size_t length, size_t max_history_size
     }
 
     // we have to overwrite any HELP handler added by user
-    register_help_command();
+    register_default_commands();
 }
 
 ATServer::~ATServer()
@@ -61,7 +61,7 @@ ATServer::~ATServer()
     // nothing to do?
 }
 
-void ATServer::register_help_command(void)
+void ATServer::register_default_commands(void)
 {
     ATCommand_t tmp;
     tmp.command = AT_HELP;
@@ -70,6 +70,12 @@ void ATServer::register_help_command(void)
     tmp.read_handler = nullptr;
     tmp.write_handler = nullptr;
     tmp.write_handler_args_list = string("");
+
+    this->registered_commands.push_back(tmp);
+
+    tmp.command = AT_INFO;
+    tmp.help_text = AT_INFO_HELP_TEXT;
+    tmp.run_handler = at_info;
 
     this->registered_commands.push_back(tmp);
 }
