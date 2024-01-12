@@ -60,6 +60,10 @@ list(APPEND SOURCE_FILES ${PORTING_FILES})
 list(APPEND SOURCE_FILES ${FIRMWARE_SDK_FILES})
 list(APPEND SOURCE_FILES ${FIRMWARE_SDK_C_FILES})
 
+
+
+
 # add all sources to the project
 target_sources(app PRIVATE ${SOURCE_FILES})
+target_sources(app PRIVATE ${MODEL_SOURCE})
 target_sources(app PRIVATE src/main.cpp)
