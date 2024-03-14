@@ -14,16 +14,27 @@ limitations under the License.
 ==============================================================================*/
 
 #define FLATBUFFERS_LOCALE_INDEPENDENT 0
-#include "edge-impulse-sdk/third_party/flatbuffers/include/flatbuffers/flexbuffers.h"
-#include "edge-impulse-sdk/tensorflow/lite/c/common.h"
-#include "edge-impulse-sdk/tensorflow/lite/micro/kernels/kernel_util.h"
-#include "edge-impulse-sdk/tensorflow/lite/kernels/kernel_util.h"
 #include <math.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include <algorithm>
+#include <initializer_list>
+#include <numeric>
+#include <vector>
+
+#include "edge-impulse-sdk/third_party/flatbuffers/include/flatbuffers/flexbuffers.h"  // from @flatbuffers
+#include "edge-impulse-sdk/tensorflow/lite/c/common.h"
+#include "edge-impulse-sdk/tensorflow/lite/kernels/internal/compatibility.h"
+#include "edge-impulse-sdk/tensorflow/lite/kernels/internal/tensor_ctypes.h"
+#include "edge-impulse-sdk/tensorflow/lite/kernels/kernel_util.h"
 
 #define FEATURE_TYPE float
 
 namespace tflite {
-namespace {
+namespace ops {
+namespace custom {
+namespace tree_ensemble_classifier {
 
 struct OpDataTree {
   uint32_t num_leaf_nodes;
@@ -42,11 +53,11 @@ struct OpDataTree {
 };
 
 void* Init(TfLiteContext* context, const char* buffer, size_t length) {
+
   const uint8_t* buffer_t = reinterpret_cast<const uint8_t*>(buffer);
   const flexbuffers::Map& m = flexbuffers::GetRoot(buffer_t, length).AsMap();
 
-  TFLITE_DCHECK(context->AllocatePersistentBuffer != nullptr);
-  OpDataTree* data = static_cast<OpDataTree*>(context->AllocatePersistentBuffer(context, sizeof(OpDataTree)));
+  auto* data = new OpDataTree;
 
   data->buffer_t = buffer_t;
   data->buffer_length = length;
@@ -69,7 +80,6 @@ void* Init(TfLiteContext* context, const char* buffer, size_t length) {
 
 TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
 
-  MicroContext* micro_context = GetMicroContext(context);
   const OpDataTree* data = static_cast<const OpDataTree*>(node->user_data);
   const flexbuffers::Map& m = flexbuffers::GetRoot(data->buffer_t, data->buffer_length).AsMap();
 
@@ -109,10 +119,10 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
 
   TF_LITE_ENSURE_EQ(context, NumInputs(node), 1);
   TF_LITE_ENSURE_EQ(context, NumOutputs(node), 1);
-  TfLiteTensor* input = micro_context->AllocateTempInputTensor(node, 0);
+  const TfLiteTensor* input = GetInput(context, node, 0);
   TF_LITE_ENSURE(context, input != nullptr);
   TF_LITE_ENSURE(context, NumDimensions(input) == 2);
-  TfLiteTensor* output = micro_context->AllocateTempOutputTensor(node, 0);
+  TfLiteTensor* output = GetOutput(context, node, 0);
   TF_LITE_ENSURE(context, output != nullptr);
 
   int input_width = SizeOfDimension(input, 1);
@@ -122,16 +132,11 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
   for (uint32_t i = 0; i < data->num_internal_nodes; i++) {
     TF_LITE_ENSURE(context, data->nodes_featureids[i] < input_width);
     TF_LITE_ENSURE(context, data->nodes_featureids[i] >= 0);
-    if (!m["nodes_modes"].AsBlob().IsTheEmptyBlob()) {
-        if (data->nodes_modes[i] == 0) {
-            TF_LITE_ENSURE(context, data->nodes_classids[i] < output_width);
-            TF_LITE_ENSURE(context, data->nodes_classids[i] >= 0);
-        }
+    if (data->nodes_modes[i] == 0) {
+      TF_LITE_ENSURE(context, data->nodes_classids[i] < output_width);
+      TF_LITE_ENSURE(context, data->nodes_classids[i] >= 0);
     }
   }
-
-  micro_context->DeallocateTempTfLiteTensor(input);
-  micro_context->DeallocateTempTfLiteTensor(output);
 
   return kTfLiteOk;
 }
@@ -139,49 +144,38 @@ TfLiteStatus Prepare(TfLiteContext* context, TfLiteNode* node) {
 TfLiteStatus Eval(TfLiteContext* context, TfLiteNode* node) {
 
   const OpDataTree* data = static_cast<const OpDataTree*>(node->user_data);
+  const TfLiteTensor* input;
+  TF_LITE_ENSURE_OK(context, GetInputSafe(context, node, 0, &input));
+  TfLiteTensor* output;
+  TF_LITE_ENSURE_OK(context, GetOutputSafe(context, node, 0, &output));
 
-  const TfLiteEvalTensor* input =
-      tflite::micro::GetEvalInput(context, node, 0);
-  const float *in_data = tflite::micro::GetTensorData<float>(input);
-
-  TfLiteEvalTensor* output =
-      tflite::micro::GetEvalOutput(context, node, 0);
-  float *out_data = tflite::micro::GetTensorData<float>(output);
-
-  const tflite::RuntimeShape output_shape = tflite::micro::GetTensorShape(output);
-  memset(out_data, 0, output_shape.FlatSize() * sizeof(float));
+  float* output_data = GetTensorData<float>(output);
+  memset(output_data, 0, GetTensorShape(output).FlatSize() * sizeof(float));
 
   for (uint32_t i = 0; i < data->num_trees; i++) {
     uint16_t ix = data->tree_root_ids[i];
-
     while (ix < data->num_internal_nodes) {
-      float node_val = 0;
-      memcpy(&node_val, (data->nodes_values + ix), sizeof(float));
-
-      if (in_data[data->nodes_featureids[ix]] <= node_val) {
+      if (input->data.f[data->nodes_featureids[ix]] <= data->nodes_values[ix]) {
         ix = data->nodes_truenodeids[ix];
       } else {
         ix = data->nodes_falsenodeids[ix];
       }
     }
     ix -= data->num_internal_nodes;
-
-    float weight = 0;
-    memcpy(&weight, (data->nodes_weights + ix), sizeof(float));
-    out_data[data->nodes_classids[ix]] += weight;
+    output->data.f[data->nodes_classids[ix]] += data->nodes_weights[ix];
   }
 
   return kTfLiteOk;
 }
 
-
 }  // namespace
 
-TfLiteRegistration* Register_TreeEnsembleClassifier() {
-  static TfLiteRegistration r = {Init,
+TfLiteRegistration* Register_TREE_ENSEMBLE_CLASSIFIER() {
+  static TfLiteRegistration r = {
+          tree_ensemble_classifier::Init,
           nullptr,
-          Prepare,
-          Eval,
+          tree_ensemble_classifier::Prepare,
+          tree_ensemble_classifier::Eval,
           /*profiling_string=*/nullptr,
           /*builtin_code=*/0,
           /*custom_name=*/nullptr,
@@ -189,6 +183,10 @@ TfLiteRegistration* Register_TreeEnsembleClassifier() {
   return &r;
 }
 
-const char* GetString_TreeEnsembleClassifier() { return "TreeEnsembleClassifier"; }
+TfLiteRegistration* Register_TFLITE_TREE_ENSEMBLE_CLASSIFIER() {
+  return Register_TREE_ENSEMBLE_CLASSIFIER();
+}
 
+}  // namespace custom
+}  // namespace ops
 }  // namespace tflite
