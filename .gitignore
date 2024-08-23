@@ -7,3 +7,5 @@ modules/
 tools/
 *.hex
 copy-sdk.sh
+create-arduino-library.sh
+
