@@ -116,7 +116,7 @@ void run_nn(bool debug)
             break;
         }
 
-        display_results(&result);
+        display_results(&ei_default_impulse, &result);
 
         /*BLE PRINTF*/
         for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
@@ -201,7 +201,7 @@ void run_nn(bool debug)
             break;
         }
 
-        display_results(&result);
+        display_results(&ei_default_impulse, &result);
 
         /*BLE PRINTF*/
         for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
@@ -273,7 +273,7 @@ void run_nn_continuous(bool debug)
         }
 
         if (++print_results >= (EI_CLASSIFIER_SLICES_PER_MODEL_WINDOW >> 1)) {
-            display_results(&result);
+            display_results(&ei_default_impulse, &result);
             print_results = 0;
         }
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
